@@ -1,0 +1,15 @@
+{
+    "compilerOptions": {
+      "module": "commonjs",
+      "target": "es2020",
+      "outDir": "out",
+      "lib": ["es2020"],
+      "rootDir": "src",
+      "strict": true,
+      "sourceMap": true,
+      "esModuleInterop": true,
+      "skipLibCheck": true,
+      "resolveJsonModule": true
+    },
+    "include": ["src"]
+  }

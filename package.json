@@ -1,0 +1,67 @@
+{
+    "name": "pyrepl-notebook-extension",
+    "displayName": "Py‑REPL Notebook",
+    "publisher": "your‑name",
+    "version": "0.0.1",
+    "engines": {
+        "vscode": "^1.90.0"
+    },
+    "categories": [
+        "Other"
+    ],
+    "activationEvents": [
+        "onCommand:pyrepl.newNotebook",
+        "onCommand:pyrepl.runCell",
+        "onDebug"
+    ],
+    "contributes": {
+        "commands": [
+            {
+                "command": "pyrepl.newNotebook",
+                "title": "Py‑REPL: New Notebook"
+            },
+            {
+                "command": "pyrepl.runCell",
+                "title": "Py‑REPL: Run Cell"
+            }
+        ],
+        "notebookRenderer": [
+            {
+                "id": "pyrepl-renderer",
+                "displayName": "Py‑REPL Renderer",
+                "entryPoint": "./media/renderer.js",
+                "mimeTypes": [
+                    "text/plain"
+                ]
+            }
+        ],
+        "notebookOutputRenderer": [
+            {
+                "viewType": "pyrepl-notebook",
+                "rendererId": "pyrepl-renderer"
+            }
+        ],
+        "notebookSerializer": [
+            {
+                "viewType": "pyrepl-notebook",
+                "displayName": "Py‑REPL Notebook",
+                "filenamePattern": "*.pyreplnb"
+            }
+        ]
+    },
+    "main": "./out/extension.js",
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "package": "vsce package"
+    },
+    "devDependencies": {
+        "@types/node": "^20.11.30",
+        "@types/vscode": "^1.90.0",
+        "typescript": "^5.4.5"
+    },
+    "dependencies": {
+        "vsce": "^2.15.0"
+    }
+}
