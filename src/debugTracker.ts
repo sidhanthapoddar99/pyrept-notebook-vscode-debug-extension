@@ -1,40 +1,31 @@
-
+// FILE: src/debugTracker.ts
 import * as vscode from "vscode";
 import { PyReplNotebookController } from "./notebookController";
 
-export function registerDebugTracker(context: vscode.ExtensionContext, controller: PyReplNotebookController) {
+/**
+ * Attaches a tracker so all `output` events from the Python debug adapter
+ * are piped back into the *currently running* cell execution.
+ */
+export function registerDebugTracker(context: vscode.ExtensionContext, ctrl: PyReplNotebookController) {
   const factory: vscode.DebugAdapterTrackerFactory = {
     createDebugAdapterTracker(session) {
-      if (session.type !== "python") {
+      // only Python sessions we started
+      if (session.type !== "python" || session !== ctrl.debugSession) {
         return;
       }
-      controller.debugSession = session; // expose to controller
+
       return {
-        onDidSendMessage: async message => {
-          if (message.type === "event" && message.event === "output") {
-            const body = message.body as { category: string; output: string };
-            // Forward to the active cell's output (append)
-            const editor = vscode.window.activeNotebookEditor;
-            const cell = editor?.selection?.start?.with?.() ? editor?.selections[0].start : undefined;
-            if (!cell) {
-              return;
-            }
-            const cellExe = controller.controller.getNotebookCellExecution(editor!.notebook.cellAt(cell));
-            if (!cellExe) {
-              return;
-            }
-            const existing = cellExe.cell.outputs[0]?.items[0]?.text ?? "";
-            const combined = existing + body.output;
-            const item = vscode.NotebookCellOutputItem.text(combined, "text/plain");
-            cellExe.replaceOutput(new vscode.NotebookCellOutput([item]));
+        onDidSendMessage: msg => {
+          if (msg.type === "event" && msg.event === "output") {
+            const body = msg.body as { output: string; category?: string };
+            ctrl.appendStream(body.output);
           }
         },
         onWillStopSession: () => {
-          controller.debugSession = undefined;
+          ctrl.debugSession = undefined;
         }
       } satisfies vscode.DebugAdapterTracker;
     }
   };
-
   context.subscriptions.push(vscode.debug.registerDebugAdapterTrackerFactory("python", factory));
 }

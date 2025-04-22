@@ -1,7 +1,7 @@
 {
     "name": "pyrepl-notebook-extension",
     "displayName": "Py‑REPL Notebook",
-    "publisher": "your‑name",
+    "publisher": "sidh",
     "version": "0.0.1",
     "engines": {
         "vscode": "^1.90.0"
