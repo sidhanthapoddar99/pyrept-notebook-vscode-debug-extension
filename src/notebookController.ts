@@ -124,7 +124,7 @@ export class DebugNotebookController {
             // If there's a result and no print statement, we don't need to wait
             if (response && response.result && response.result !== 'None' && !code.includes('print(')) {
                 clearTimeout(outputTimeout);
-                outputResolve();
+                // outputResolve();
             } else {
                 // Wait for output to complete
                 await outputPromise;

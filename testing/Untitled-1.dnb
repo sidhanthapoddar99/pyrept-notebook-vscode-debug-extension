@@ -22,7 +22,7 @@
     },
     {
       "language": "python",
-      "value": "x",
+      "value": "for i in range(0,10000):\n    print(f\"{i} X 2 = {i*2}\")",
       "kind": 2
     },
     {

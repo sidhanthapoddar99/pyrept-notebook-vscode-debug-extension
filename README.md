@@ -1,5 +1,9 @@
 # Debug Notebook Extension
 
+[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/sid1999.debug-notebook)](https://marketplace.visualstudio.com/items?itemName=sid1999.debug-notebook)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
+
 A VS Code extension that bridges the gap between notebooks and debugging. Debug Notebook provides an interactive notebook interface that automatically connects to active debug sessions, allowing you to explore and manipulate code execution in real-time.
 
 ## Features
@@ -50,35 +54,64 @@ result = func(x, y)    # Call functions in scope
 
 Debug Notebooks automatically detect and connect to any active debug session. No manual configuration needed!
 
-## Example Workflow
+## Publishing to VS Code Marketplace
 
-1. Set breakpoints in your code
-2. Start debugging (F5)
-3. When paused, open a Debug Notebook
-4. Explore the current state:
-   ```python
-   # See all variables
-   print(locals())
+### Prerequisites
+
+1. Create a Microsoft Azure DevOps account
+2. Create a Personal Access Token (PAT):
+   - Go to https://dev.azure.com
+   - Click on User Settings (profile icon) > Personal Access Tokens
+   - Create new token with "Marketplace (Publish)" scope
+3. Install vsce: `npm install -g @vscode/vsce`
+
+### Publishing Steps
+
+1. **Clean and Prepare**
+   ```bash
+   # Clean dependencies
+   rm -rf node_modules
+   npm install --production=false
    
-   # Modify values
-   data = data * 2
+   # Compile
+   npm run compile
    
-   # Test fixes
-   result = problematic_function(data)
+   # Create necessary directories if they don't exist
+   mkdir -p icons
+   
+   # Ensure icons are present
+   cp src/icons/* icons/
    ```
 
-## Advantages Over Traditional Debugging
+2. **Create Publisher**
+   ```bash
+   vsce create-publisher sid1999 # Use your publisher name
+   ```
 
-- **Interactive Exploration**: Test hypotheses without modifying source code
-- **Documentation**: Save debugging sessions for future reference
-- **Experimentation**: Try multiple approaches in separate cells
-- **State Manipulation**: Modify variables and see immediate effects
+3. **Login and Publish**
+   ```bash
+   # Login with your PAT
+   vsce login sid1999
+   
+   # Package extension
+   vsce package
+   
+   # Publish to marketplace
+   vsce publish
+   ```
 
-## Known Limitations
+4. **Update Extension**
+   ```bash
+   # Increment version and publish
+   vsce publish minor  # for 1.0.0 -> 1.1.0
+   vsce publish patch  # for 1.0.0 -> 1.0.1
+   vsce publish major  # for 1.0.0 -> 2.0.0
+   ```
 
-- Text output only (no graphs or rich media)
-- Requires active debug session
-- Limited to languages with debug adapter support
+### Verification
+
+- Visit https://marketplace.visualstudio.com/manage/publishers/sid1999
+- Check your extension at https://marketplace.visualstudio.com/items?itemName=sid1999.debug-notebook
 
 ## Development
 
@@ -106,12 +139,6 @@ Press F5 in VS Code
 - Improved error handling
 - Enhanced documentation
 
-### 0.0.1
-
-- Initial release
-- Basic notebook functionality
-- Manual session connection
-
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
@@ -123,3 +150,9 @@ MIT License - see [LICENSE](LICENSE) file for details
 ## Acknowledgments
 
 This extension leverages VS Code's excellent Notebook API and Debug Adapter Protocol to create a unique debugging experience. Special thanks to the VS Code team for making this possible.
+
+## Support
+
+- **Issues**: Report bugs at https://github.com/yourusername/debug-notebook/issues
+- **Feature Requests**: Open an issue with the "enhancement" label
+- **Contact**: sidhantha1999@gmail.com

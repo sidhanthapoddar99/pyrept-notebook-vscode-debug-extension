@@ -1,167 +1,163 @@
-# Debug Notebook User Guide
+# Debug Notebook for VS Code
 
-The Debug Notebook extension provides a notebook interface where code cells execute directly in VS Code's debug console, giving you the power of interactive notebooks with debugging capabilities.
+**Interactive notebook interface that connects to your debug sessions** - Debug your code like never before with the power of notebooks!
 
-## Installation
+## What is Debug Notebook?
 
-1. Install the Debug Notebook extension from the VS Code Marketplace
-2. Install language-specific debug extensions:
-   - For Python: Install the Python extension
-   - For JavaScript: No additional extension needed (VS Code built-in)
+Debug Notebook brings the interactive power of notebooks to your debugging workflow. Instead of just using the debug console, you can now use a full notebook interface that connects automatically to any active debug session.
 
-## Creating a Debug Notebook
+### 🚀 Key Features
 
-### Option 1: Create New Notebook
-1. Open Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`)
-2. Type "Debug Notebook: New Debug Notebook"
-3. A new untitled `.dnb` notebook will open
+- **Automatic Debug Connection**: Start debugging and open a notebook - it connects automatically!
+- **Interactive Exploration**: Use cells to inspect variables, test fixes, and call functions
+- **Persistent Sessions**: Save your debugging sessions for future reference
+- **Multi-Language Support**: Works with Python and JavaScript debugging
+- **Familiar Interface**: If you've used Jupyter notebooks, you'll feel right at home
 
-### Option 2: Create File Manually
-1. Create a new file with `.dnb` extension
-2. The extension will automatically recognize it as a Debug Notebook
+## Getting Started
 
-## Using the Notebook
+### Installation
 
-### Adding Code Cells
+1. Install from VS Code Marketplace (search for "Debug Notebook")
+2. Make sure you have the Python extension installed (for Python debugging)
+3. That's it! You're ready to start debugging with notebooks
 
-1. Use the "+" button in the notebook toolbar to add new cells
-2. Choose between Code and Markdown cells
-3. Select the language for code cells (Python or JavaScript)
+### Quick Tutorial
 
-### Writing Code
+1. **Start Debugging**
+   - Set a breakpoint in your code
+   - Press F5 to start debugging
+   - When paused at the breakpoint, create a new Debug Notebook
 
-**Python Example:**
+2. **Create a Debug Notebook**
+   - Use Command Palette: `Debug Notebook: New Debug Notebook`
+   - Or create a file with `.dnb` extension
+
+3. **Write and Run Cells**
+   ```python
+   # Inspect the current state
+   print(locals())  # See all variables
+   
+   # Modify variables
+   x = x * 2
+   
+   # Test functions
+   result = problematic_function(x, y)
+   
+   # Experiment with fixes
+   data = clean_data(data)
+   ```
+
+4. **Save Your Work**
+   - Save the notebook to document your debugging process
+   - Share with teammates to explain issues and solutions
+
+## Why Debug Notebook?
+
+### Traditional Debugging vs Debug Notebook
+
+| Traditional Debug Console | Debug Notebook |
+|--------------------------|----------------|
+| One command at a time | Multiple cells with persistent output |
+| No history after closing | Save debugging sessions |
+| Hard to document process | Built-in documentation |
+| Limited experimentation | Easy to test multiple approaches |
+
+### Perfect For:
+
+- **Complex Debugging**: Test multiple hypotheses without changing source code
+- **Teaching**: Document debugging techniques for education
+- **Team Collaboration**: Share debugging sessions with teammates
+- **Bug Investigation**: Keep a record of what you tried and what worked
+- **Learning**: See how variables change in real-time
+
+## Usage Examples
+
+### Python Debugging Session
+
 ```python
-# Define a variable
-message = "Hello from Debug Notebook!"
-print(message)
+# Cell 1: Inspect the bug
+print(f"Current value of user_data: {user_data}")
+print(f"Exception occurred at: {e}")
 
-# Multi-line code is supported
-def greet(name):
-    return f"Hello, {name}!"
+# Cell 2: Test a fix
+try:
+    fixed_data = clean_user_data(user_data)
+    process_user(fixed_data)
+    print("Fix works!")
+except Exception as e:
+    print(f"Still failing: {e}")
 
-print(greet("World"))
+# Cell 3: Explore alternative approach
+from alternative_lib import better_processor
+result = better_processor(user_data)
+print(f"Alternative result: {result}")
 ```
 
-**JavaScript Example:**
+### JavaScript Debugging Session
+
 ```javascript
-// Define variables
-let count = 0;
-console.log(`Starting count: ${count}`);
+// Cell 1: Check current state
+console.log('Current array:', problematicArray);
+console.log('Item count:', problematicArray.length);
 
-// Functions work too
-function increment() {
-    count++;
-    console.log(`Current count: ${count}`);
-}
+// Cell 2: Test array manipulation
+const filtered = problematicArray.filter(item => item.valid);
+console.log('Filtered items:', filtered);
 
-increment();
+// Cell 3: Fix and verify
+problematicArray = filtered;
+processArray(problematicArray);
+console.log('Processing successful!');
 ```
-
-### Running Cells
-
-1. **Run Single Cell**: Click the play button (▶️) next to the cell or press `Shift+Enter`
-2. **Run All Cells**: Use the "Run All" button in the notebook toolbar
-3. **Using Keyboard**: Select a cell and use keyboard shortcut `Ctrl+Enter` to run and stay in the cell
-
-### Viewing Output
-
-- Output appears directly below each cell
-- Printed output (stdout) shows as plain text
-- Error messages (stderr) appear in red
-- Return values of expressions are displayed
-
-## Advanced Features
-
-### Persistent State
-
-- Variables and functions persist between cell executions
-- State is maintained as long as the debug session is active
-- Closing the notebook or VS Code will reset the state
-
-### Debugging Integration
-
-1. **Setting Breakpoints**: 
-   - Not directly supported for cell code
-   - You can debug imported modules by setting breakpoints in source files
-
-2. **Inspecting Variables**:
-   - Use the Debug sidebar to view variables while debug session is active
-   - Variable values persist between cell executions
-
-### Language-Specific Features
-
-**Python:**
-- Supports all standard Python syntax
-- Multi-line code is automatically wrapped in `exec()`
-- Print statements work as expected
-- Can import modules: `import math`, `import pandas as pd`
-
-**JavaScript:**
-- Supports ES6+ syntax
-- Can use `console.log()` for output
-- Async/await is supported
-- Can require/import modules (Node.js modules)
-
-## Working with Files
-
-### Saving Notebooks
-
-1. Use `Ctrl+S` (or `Cmd+S` on Mac) to save
-2. Choose a location and keep the `.dnb` extension
-3. The notebook format preserves all cell content
-
-### Opening Existing Notebooks
-
-1. Use File → Open File and select a `.dnb` file
-2. Double-click on `.dnb` files in the Explorer
-3. Notebooks open with all cells intact
-
-## Best Practices
-
-1. **Keep cells focused**: Each cell should have a single purpose
-2. **Use markdown cells**: Document your code with explanations
-3. **Clear output regularly**: Use "Clear All Outputs" to clean up
-4. **Save frequently**: Like any document, save your work regularly
-
-## Limitations
-
-1. **No rich output**: Only text output is supported (no graphs or images)
-2. **Debug session required**: Needs appropriate debug extension installed
-3. **Language-specific**: Only supports languages with debug adapters
-4. **Performance**: Large computations may be slower than native execution
-
-## Troubleshooting
-
-### Code Not Running
-
-1. Check that the kernel (Debug Console Kernel) is selected
-2. Ensure the appropriate debug extension is installed
-3. Verify that no other debug session is interfering
-
-### No Output Appearing
-
-1. Make sure to use `print()` or `console.log()` to see output
-2. Check for errors in the Debug Console view
-3. Verify the debug session is active
-
-### Session Lost
-
-If you see errors about missing debug session:
-1. Restart VS Code
-2. Run a cell to start a new debug session
-3. Your previous variable state will be lost
 
 ## Tips and Tricks
 
-1. **Quick Cell Execution**: Use `Shift+Enter` to run cell and move to next
-2. **Multi-line Input**: Use `Shift+Enter` within a cell to add new lines
-3. **Clear Variables**: Restart the debug session to clear all variables
-4. **Export Code**: Copy cell content to regular `.py` or `.js` files
+1. **Use Markdown Cells**: Document your investigation process
+2. **Save Frequently**: Keep your debugging sessions for future reference
+3. **Keyboard Shortcuts**: `Shift+Enter` to run cell and move to next
+4. **Clear Output**: Use "Clear All Outputs" to clean up
+5. **Multiple Sessions**: Run separate debug sessions for different issues
 
-## Getting Help
+## Troubleshooting
 
-- View the Debug Console for error messages
-- Check VS Code's Output panel for extension logs
-- Report issues on the extension's GitHub repository
-- Consult language-specific documentation for syntax help
+### Common Issues
+
+1. **"No active debug session"**
+   - Make sure you've started debugging first (F5)
+   - Check that the debugger is paused at a breakpoint
+
+2. **Cells not running**
+   - Verify the kernel is selected (Debug Console Kernel)
+   - Check that appropriate debug extension is installed
+
+3. **No output appearing**
+   - Use `print()` or `console.log()` for output
+   - Check the Debug Console for errors
+
+## Requirements
+
+- VS Code 1.90.0 or later
+- Language-specific debug extensions:
+  - Python: Python extension by Microsoft
+  - JavaScript: Built-in debugger
+
+## Known Limitations
+
+- Text output only (no graphs or rich media)
+- Requires active debug session
+- Limited to languages with debug adapter support
+
+## Support
+
+- 📝 Report issues: [GitHub Issues](https://github.com/yourusername/debug-notebook/issues)
+- 💡 Feature requests: [GitHub Discussions](https://github.com/yourusername/debug-notebook/discussions)
+- 📧 Contact: sidhantha1999@gmail.com
+
+## License
+
+MIT License - Free to use in personal and commercial projects.
+
+---
+
+**Made with ❤️ for developers who love efficient debugging**

@@ -1,17 +1,44 @@
 {
   "name": "debug-notebook",
   "displayName": "Debug Notebook",
-  "description": "Notebook interface using debug console as execution engine",
-  "version": "0.0.1",
+  "description": "Interactive notebook interface that connects to your debug sessions - Debug your code like never before with the power of notebooks!",
+  "version": "1.0.0",
   "publisher": "sid1999",
+  "author": {
+    "name": "Sidhantha Poddar",
+    "email": "sidhantha1999@gmail.com"
+  },
   "engines": {
     "vscode": "^1.90.0"
   },
   "categories": [
     "Programming Languages",
     "Debuggers",
-    "Notebooks"
+    "Notebooks",
+    "Other"
   ],
+  "keywords": [
+    "debug",
+    "notebook",
+    "debugging",
+    "python",
+    "javascript",
+    "interactive",
+    "REPL"
+  ],
+  "icon": "icons/dnb-icon-large.ico",
+  "galleryBanner": {
+    "color": "#7B3FE4",
+    "theme": "dark"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sidhanthapoddar99/pyrept-notebook-vscode-debug-extension"
+  },
+  "bugs": {
+    "url": "https://github.com/sidhanthapoddar99/pyrept-notebook-vscode-debug-extension/issues"
+  },
+  "license": "MIT",
   "activationEvents": [
     "onNotebook:debug-notebook",
     "onCommand:debugNotebook.newNotebook"
@@ -65,7 +92,9 @@
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
-    "test": "node ./out/test/runTest.js"
+    "test": "node ./out/test/runTest.js",
+    "package": "vsce package",
+    "publish": "vsce publish"
   },
   "devDependencies": {
     "@types/vscode": "^1.90.0",
@@ -73,6 +102,19 @@
     "@typescript-eslint/eslint-plugin": "^6.7.0",
     "@typescript-eslint/parser": "^6.7.0",
     "eslint": "^8.26.0",
-    "typescript": "^5.2.2"
-  }
+    "typescript": "^5.2.2",
+    "@vscode/vsce": "^2.22.0"
+  },
+  "badges": [
+    {
+      "url": "https://img.shields.io/visual-studio-marketplace/v/sid1999.debug-notebook",
+      "href": "https://marketplace.visualstudio.com/items?itemName=sid1999.debug-notebook",
+      "description": "VS Code Marketplace Version"
+    },
+    {
+      "url": "https://img.shields.io/github/license/sidhanthapoddar99/pyrept-notebook-vscode-debug-extension",
+      "href": "https://github.com/sidhanthapoddar99/pyrept-notebook-vscode-debug-extension/blob/master/LICENSE",
+      "description": "License"
+    }
+  ]
 }
