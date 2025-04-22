@@ -149,9 +149,15 @@ export class DebugNotebookController {
                 outputReject = reject;
             });
             
-            // Shorter timeout for expressions vs statements
-            const isExpression = !code.trim().includes('print(') && !code.trim().includes('=');
-            const timeoutDuration = isExpression ? 50 : 200;
+            // Check if this is a print statement or expression
+            const isPrintStatement = code.trim().includes('print(');
+            const isExpression = !isPrintStatement && !code.trim().includes('=');
+            
+            // Longer timeout for print statements
+            const timeoutDuration = isPrintStatement ? 500 : (isExpression ? 50 : 200);
+            
+            // Store that we're expecting output from a print
+            let expectingPrintOutput = isPrintStatement;
             
             // Set up a timeout to resolve the promise after a short delay
             const outputTimeout = setTimeout(() => {
@@ -181,25 +187,31 @@ export class DebugNotebookController {
             const response = await session.customRequest('evaluate', evaluateRequest);
             console.log('Evaluate response:', response);
 
-            // If there's a result and no print statement, we don't need to wait
-            if (response && response.result && response.result !== 'None' && !code.includes('print(')) {
+            // For print statements, always wait for output
+            if (expectingPrintOutput) {
+                await outputPromise;
+            } else if (response && response.result && response.result !== 'None') {
+                // For expressions with non-None results, we might not need to wait
                 clearTimeout(outputTimeout);
-                // outputResolve();
             } else {
-                // Wait for output to complete
+                // For other cases, wait for output
                 await outputPromise;
             }
 
             // Handle result - only add if it's not None and not already in output
             if (response && response.result && response.result !== 'None') {
                 const hasOutput = this._outputBuffer.length > 0;
-                const isPrintStatement = code.trim().includes('print(');
                 
                 // Only add evaluate result if there's no output and it's not a print statement
                 if (!hasOutput && !isPrintStatement) {
                     // Add newline after result for consistency
                     this._outputBuffer = response.result + '\n';
                 }
+            }
+            
+            // Add a small delay to ensure all output is captured
+            if (expectingPrintOutput && this._outputBuffer === '') {
+                await new Promise(resolve => setTimeout(resolve, 100));
             }
             
             // Update final output
@@ -217,6 +229,10 @@ export class DebugNotebookController {
             this._updateCellOutput(execution);
             execution.end(false, Date.now());
         } finally {
+            // Keep the execution active slightly longer for late-arriving output
+            await new Promise(resolve => setTimeout(resolve, 50));
+            
+            // Now clean up
             this._currentExecution = undefined;
             this._outputBuffer = '';
             this._errorBuffer = '';
