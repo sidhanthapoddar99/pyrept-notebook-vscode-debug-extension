@@ -6,38 +6,56 @@ export class DebugOutputTracker implements vscode.DebugAdapterTrackerFactory {
     constructor(private _controller: DebugNotebookController) {}
 
     createDebugAdapterTracker(session: vscode.DebugSession): vscode.ProviderResult<vscode.DebugAdapterTracker> {
-        return new DebugAdapterTracker(this._controller);
+        return new DebugAdapterTracker(this._controller, session);
     }
 }
 
 class DebugAdapterTracker implements vscode.DebugAdapterTracker {
-    private _outputBuffer: string = '';
-
-    constructor(private _controller: DebugNotebookController) {}
+    constructor(
+        private _controller: DebugNotebookController,
+        private _session: vscode.DebugSession
+    ) {}
 
     onDidSendMessage(message: any): void {
+        // Log all messages for debugging
+        console.log('Debug adapter message:', message);
+        
         if (message.type === 'event' && message.event === 'output') {
             const output = message.body?.output || '';
             const category = message.body?.category || 'stdout';
             
+            // Only capture output if we have an active execution
             const execution = this._controller.getCurrentExecution();
             if (execution) {
-                // Handle different output categories
+                console.log(`Captured output (${category}): ${output}`);
+                
                 if (category === 'stdout' || category === 'console') {
                     this._controller.appendOutput(output, false);
-                } else if (category === 'stderr') {
+                } else if (category === 'stderr' || category === 'important') {
                     this._controller.appendOutput(output, true);
                 }
             }
         }
+        
+        // Also capture evaluation results
+        if (message.type === 'response' && message.command === 'evaluate') {
+            console.log('Evaluate response in tracker:', message);
+        }
     }
 
     onWillStartSession(): void {
-        // Reset output buffer when session starts
-        this._outputBuffer = '';
+        console.log(`Debug session starting: ${this._session.name}`);
     }
 
     onWillStopSession(): void {
-        // Cleanup if needed
+        console.log(`Debug session stopping: ${this._session.name}`);
+    }
+
+    onError(error: Error): void {
+        console.error('Debug adapter error:', error);
+    }
+
+    onExit(code: number | undefined, signal: string | undefined): void {
+        console.log(`Debug adapter exited with code ${code}, signal ${signal}`);
     }
 }

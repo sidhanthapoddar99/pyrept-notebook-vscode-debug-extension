@@ -2,7 +2,12 @@
   "cells": [
     {
       "language": "python",
-      "value": "c",
+      "value": "print(\"value of a\", a)\nprint(\"value of b\", b)",
+      "kind": 2
+    },
+    {
+      "language": "python",
+      "value": "print(\"value of x\", x)\nprint(\"value of y\", y)",
       "kind": 2
     },
     {
