@@ -35,6 +35,80 @@ export class DebugNotebookController {
         }
     }
 
+    private isDebugStackFrame(item: any): item is vscode.DebugStackFrame {
+        return item && 'frameId' in item && 'threadId' in item;
+    }
+
+    private isDebugThread(item: any): item is vscode.DebugThread {
+        return item && 'threadId' in item && 'name' in item && !('frameId' in item);
+    }
+
+    private async _getCurrentThreadAndFrame(session: vscode.DebugSession): Promise<{ threadId?: number, frameId?: number }> {
+        try {
+            // First check if there's an active stack item (thread or stack frame)
+            const activeStackItem = vscode.debug.activeStackItem;
+            console.log('Active stack item:', activeStackItem);
+
+            let threadId: number | undefined;
+            let frameId: number | undefined;
+
+            if (activeStackItem) {
+                if (this.isDebugStackFrame(activeStackItem)) {
+                    // It's a DebugStackFrame
+                    threadId = activeStackItem.threadId;
+                    frameId = activeStackItem.frameId;
+                    console.log(`Using active stack frame: thread ${threadId}, frame ${frameId}`);
+                } else if (this.isDebugThread(activeStackItem)) {
+                    // It's a DebugThread
+                    threadId = activeStackItem.threadId;
+                    console.log(`Using active thread: ${threadId}`);
+                }
+            }
+
+            // If we have a thread but no frame, get the top frame
+            if (threadId && !frameId) {
+                const stackTraceResponse = await session.customRequest('stackTrace', {
+                    threadId: threadId,
+                    startFrame: 0,
+                    levels: 1
+                });
+                
+                if (stackTraceResponse && stackTraceResponse.stackFrames && stackTraceResponse.stackFrames.length > 0) {
+                    frameId = stackTraceResponse.stackFrames[0].id;
+                    console.log(`Got top frame for thread ${threadId}: frame ${frameId}`);
+                }
+            }
+
+            // Fallback: If no active stack item, use the first thread (traditional behavior)
+            if (!threadId) {
+                const threadsResponse = await session.customRequest('threads', {});
+                console.log('Threads response:', threadsResponse);
+                
+                if (threadsResponse && threadsResponse.threads && threadsResponse.threads.length > 0) {
+                    threadId = threadsResponse.threads[0].id;
+                    console.log(`Falling back to first thread: ${threadId}`);
+                    
+                    // Get the top frame for this thread
+                    const stackTraceResponse = await session.customRequest('stackTrace', {
+                        threadId: threadId,
+                        startFrame: 0,
+                        levels: 1
+                    });
+                    
+                    if (stackTraceResponse && stackTraceResponse.stackFrames && stackTraceResponse.stackFrames.length > 0) {
+                        frameId = stackTraceResponse.stackFrames[0].id;
+                        console.log(`Got top frame for fallback thread: frame ${frameId}`);
+                    }
+                }
+            }
+
+            return { threadId, frameId };
+        } catch (e) {
+            console.log('Error getting thread/frame:', e);
+            return {};
+        }
+    }
+
     async executeCell(cell: vscode.NotebookCell): Promise<void> {
         const execution = this._controller.createNotebookCellExecution(cell);
         this._currentExecution = execution;
@@ -58,33 +132,13 @@ export class DebugNotebookController {
             
             const code = this._prepareCode(cell.document.getText(), cell.document.languageId);
             
-            // Get current stack frame if debugger is paused
-            let frameId: number | undefined;
-            try {
-                // Get threads
-                const threadsResponse = await session.customRequest('threads', {});
-                console.log('Threads response:', threadsResponse);
-                
-                if (threadsResponse && threadsResponse.threads && threadsResponse.threads.length > 0) {
-                    // Use the first thread (usually the main thread)
-                    const threadId = threadsResponse.threads[0].id;
-                    
-                    // Get stack trace
-                    const stackTraceResponse = await session.customRequest('stackTrace', {
-                        threadId: threadId,
-                        startFrame: 0,
-                        levels: 1
-                    });
-                    console.log('Stack trace response:', stackTraceResponse);
-                    
-                    if (stackTraceResponse && stackTraceResponse.stackFrames && stackTraceResponse.stackFrames.length > 0) {
-                        frameId = stackTraceResponse.stackFrames[0].id;
-                        console.log(`Using frame ID: ${frameId}`);
-                    }
-                }
-            } catch (e) {
-                console.log('Error getting stack frame:', e);
-                // Continue without frameId - will use global scope
+            // Get current thread and frame context
+            const { threadId, frameId } = await this._getCurrentThreadAndFrame(session);
+            
+            if (threadId) {
+                console.log(`Executing in thread ${threadId}, frame ${frameId || 'global'}`);
+            } else {
+                console.log('No specific thread context available, using global context');
             }
             
             // Create a promise to wait for output to complete
@@ -112,13 +166,19 @@ export class DebugNotebookController {
                 outputResolve();
             };
             
-            // Execute the code
+            // Execute the code with thread context
             console.log(`Evaluating code: ${code}`);
-            const response = await session.customRequest('evaluate', {
+            const evaluateRequest: any = {
                 expression: code,
-                context: 'repl',
-                frameId: frameId
-            });
+                context: 'repl'
+            };
+            
+            // Only add frameId if we have one, otherwise use global context
+            if (frameId) {
+                evaluateRequest.frameId = frameId;
+            }
+            
+            const response = await session.customRequest('evaluate', evaluateRequest);
             console.log('Evaluate response:', response);
 
             // If there's a result and no print statement, we don't need to wait
