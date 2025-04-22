@@ -95,11 +95,15 @@ export class DebugNotebookController {
                 outputReject = reject;
             });
             
+            // Shorter timeout for expressions vs statements
+            const isExpression = !code.trim().includes('print(') && !code.trim().includes('=');
+            const timeoutDuration = isExpression ? 50 : 200;
+            
             // Set up a timeout to resolve the promise after a short delay
             const outputTimeout = setTimeout(() => {
                 console.log('Output timeout reached, resolving...');
                 outputResolve();
-            }, 500); // Wait up to 500ms for output
+            }, timeoutDuration);
             
             // Store the resolve function to be called when output is captured
             this._outputResolve = () => {
@@ -117,17 +121,24 @@ export class DebugNotebookController {
             });
             console.log('Evaluate response:', response);
 
-            // Wait for output to complete
-            await outputPromise;
+            // If there's a result and no print statement, we don't need to wait
+            if (response && response.result && response.result !== 'None' && !code.includes('print(')) {
+                clearTimeout(outputTimeout);
+                outputResolve();
+            } else {
+                // Wait for output to complete
+                await outputPromise;
+            }
 
             // Handle result - only add if it's not None and not already in output
             if (response && response.result && response.result !== 'None') {
                 const hasOutput = this._outputBuffer.length > 0;
-                const isPrintStatement = code.trim().startsWith('print(');
+                const isPrintStatement = code.trim().includes('print(');
                 
                 // Only add evaluate result if there's no output and it's not a print statement
                 if (!hasOutput && !isPrintStatement) {
-                    this._outputBuffer = response.result;
+                    // Add newline after result for consistency
+                    this._outputBuffer = response.result + '\n';
                 }
             }
             
@@ -154,11 +165,17 @@ export class DebugNotebookController {
     }
 
     private _prepareCode(code: string, language: string): string {
-        const lines = code.split('\n');
+        const lines = code.split('\n').filter(line => line.trim().length > 0);
         
         if (language === 'python' && lines.length > 1) {
             // For multi-line Python code, use exec()
-            const escapedCode = code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n');
+            // Ensure proper escaping of special characters
+            const escapedCode = code
+                .replace(/\\/g, '\\\\')
+                .replace(/"/g, '\\"')
+                .replace(/\n/g, '\\n')
+                .replace(/\r/g, '\\r')
+                .replace(/\t/g, '\\t');
             return `exec("${escapedCode}")`;
         }
         
@@ -170,7 +187,8 @@ export class DebugNotebookController {
         const outputs: vscode.NotebookCellOutputItem[] = [];
         
         if (this._outputBuffer) {
-            outputs.push(vscode.NotebookCellOutputItem.text(this._outputBuffer));
+            // Don't strip newlines - preserve them for proper formatting
+            outputs.push(vscode.NotebookCellOutputItem.text(this._outputBuffer, 'text/plain'));
         }
         
         if (this._errorBuffer) {
@@ -192,7 +210,7 @@ export class DebugNotebookController {
 
     appendOutput(text: string, isError: boolean = false) {
         if (this._currentExecution) {
-            console.log(`Appending output: ${text} (error: ${isError})`);
+            console.log(`Appending output: ${JSON.stringify(text)} (error: ${isError})`);
             
             if (isError) {
                 this._errorBuffer += text;
@@ -203,8 +221,8 @@ export class DebugNotebookController {
             // Update the output with the accumulated text
             this._updateCellOutput(this._currentExecution);
             
-            // Resolve the output promise if it exists
-            if (this._outputResolve && this._outputBuffer.length > 0) {
+            // Resolve the output promise immediately when we get output
+            if (this._outputResolve) {
                 this._outputResolve();
                 this._outputResolve = undefined;
             }

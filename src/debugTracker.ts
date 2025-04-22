@@ -17,8 +17,12 @@ class DebugAdapterTracker implements vscode.DebugAdapterTracker {
     ) {}
 
     onDidSendMessage(message: any): void {
-        // Log all messages for debugging
-        console.log('Debug adapter message:', JSON.stringify(message, null, 2));
+        // Log all messages for debugging (with better formatting for output events)
+        if (message.type === 'event' && message.event === 'output') {
+            console.log('Debug adapter output:', JSON.stringify(message.body));
+        } else {
+            console.log('Debug adapter message:', message);
+        }
         
         if (message.type === 'event' && message.event === 'output') {
             const output = message.body?.output;
@@ -27,18 +31,14 @@ class DebugAdapterTracker implements vscode.DebugAdapterTracker {
             // Only capture output if we have an active execution
             const execution = this._controller.getCurrentExecution();
             if (execution && output) {
-                console.log(`Captured output (${category}): ${output}`);
+                console.log(`Captured output (${category}): ${JSON.stringify(output)}`);
                 
-                // Check if this is actual output (not empty or just newlines)
-                const hasContent = output.trim().length > 0;
-                
-                if (hasContent) {
-                    // Append output to the buffer
-                    if (category === 'stdout' || category === 'console') {
-                        this._controller.appendOutput(output, false);
-                    } else if (category === 'stderr' || category === 'important') {
-                        this._controller.appendOutput(output, true);
-                    }
+                // Don't filter out empty strings or newlines - they might be important
+                // Append output to the buffer
+                if (category === 'stdout' || category === 'console') {
+                    this._controller.appendOutput(output, false);
+                } else if (category === 'stderr' || category === 'important') {
+                    this._controller.appendOutput(output, true);
                 }
             }
         }
