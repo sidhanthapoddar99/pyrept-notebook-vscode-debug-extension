@@ -7,6 +7,7 @@ export class DebugNotebookController {
     private _context: vscode.ExtensionContext;
     private _outputBuffer: string = '';
     private _errorBuffer: string = '';
+    private _outputResolve?: () => void;
 
     constructor(context: vscode.ExtensionContext) {
         this._context = context;
@@ -86,6 +87,27 @@ export class DebugNotebookController {
                 // Continue without frameId - will use global scope
             }
             
+            // Create a promise to wait for output to complete
+            let outputResolve: () => void;
+            let outputReject: (reason?: any) => void;
+            const outputPromise = new Promise<void>((resolve, reject) => {
+                outputResolve = resolve;
+                outputReject = reject;
+            });
+            
+            // Set up a timeout to resolve the promise after a short delay
+            const outputTimeout = setTimeout(() => {
+                console.log('Output timeout reached, resolving...');
+                outputResolve();
+            }, 500); // Wait up to 500ms for output
+            
+            // Store the resolve function to be called when output is captured
+            this._outputResolve = () => {
+                console.log('Output resolved by tracker');
+                clearTimeout(outputTimeout);
+                outputResolve();
+            };
+            
             // Execute the code
             console.log(`Evaluating code: ${code}`);
             const response = await session.customRequest('evaluate', {
@@ -95,33 +117,22 @@ export class DebugNotebookController {
             });
             console.log('Evaluate response:', response);
 
-            // Handle result
-            if (response && response.result) {
-                // Add the evaluate result to the output buffer
-                if (this._outputBuffer && !this._outputBuffer.endsWith('\n')) {
-                    this._outputBuffer += '\n';
-                }
-                this._outputBuffer += response.result;
+            // Wait for output to complete
+            await outputPromise;
+
+            // Handle result - only add if it's not None and not already in output
+            if (response && response.result && response.result !== 'None') {
+                const hasOutput = this._outputBuffer.length > 0;
+                const isPrintStatement = code.trim().startsWith('print(');
                 
-                // Update final output
-                if (this._outputBuffer || this._errorBuffer) {
-                    const outputs: vscode.NotebookCellOutputItem[] = [];
-                    
-                    if (this._outputBuffer) {
-                        outputs.push(vscode.NotebookCellOutputItem.text(this._outputBuffer));
-                    }
-                    
-                    if (this._errorBuffer) {
-                        outputs.push(vscode.NotebookCellOutputItem.error({ 
-                            name: 'Error', 
-                            message: this._errorBuffer 
-                        }));
-                    }
-                    
-                    const output = new vscode.NotebookCellOutput(outputs);
-                    execution.replaceOutput(output);
+                // Only add evaluate result if there's no output and it's not a print statement
+                if (!hasOutput && !isPrintStatement) {
+                    this._outputBuffer = response.result;
                 }
             }
+            
+            // Update final output
+            this._updateCellOutput(execution);
 
             execution.end(true, Date.now());
         } catch (error: any) {
@@ -132,25 +143,13 @@ export class DebugNotebookController {
             this._errorBuffer += errorMessage;
             
             // Show final output including any stdout and the error
-            const outputs: vscode.NotebookCellOutputItem[] = [];
-            
-            if (this._outputBuffer) {
-                outputs.push(vscode.NotebookCellOutputItem.text(this._outputBuffer));
-            }
-            
-            outputs.push(vscode.NotebookCellOutputItem.error({
-                name: 'Error',
-                message: this._errorBuffer,
-                stack: error?.stack
-            }));
-            
-            const output = new vscode.NotebookCellOutput(outputs);
-            execution.replaceOutput(output);
+            this._updateCellOutput(execution);
             execution.end(false, Date.now());
         } finally {
             this._currentExecution = undefined;
             this._outputBuffer = '';
             this._errorBuffer = '';
+            this._outputResolve = undefined;
         }
     }
 
@@ -158,15 +157,33 @@ export class DebugNotebookController {
         const lines = code.split('\n');
         
         if (language === 'python' && lines.length > 1) {
-            // For multi-line Python code, we can try a different approach
-            // Instead of exec(), we can use compile() with mode='exec'
-            // This often works better with debugpy
+            // For multi-line Python code, use exec()
             const escapedCode = code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n');
-            return `eval(compile("${escapedCode}", "<string>", "exec"))`;
+            return `exec("${escapedCode}")`;
         }
         
         // For single-line Python or JavaScript, return as-is
         return code;
+    }
+
+    private _updateCellOutput(execution: vscode.NotebookCellExecution) {
+        const outputs: vscode.NotebookCellOutputItem[] = [];
+        
+        if (this._outputBuffer) {
+            outputs.push(vscode.NotebookCellOutputItem.text(this._outputBuffer));
+        }
+        
+        if (this._errorBuffer) {
+            outputs.push(vscode.NotebookCellOutputItem.error({ 
+                name: 'Error', 
+                message: this._errorBuffer 
+            }));
+        }
+        
+        if (outputs.length > 0) {
+            const output = new vscode.NotebookCellOutput(outputs);
+            execution.replaceOutput(output);
+        }
     }
 
     getCurrentExecution(): vscode.NotebookCellExecution | undefined {
@@ -175,6 +192,8 @@ export class DebugNotebookController {
 
     appendOutput(text: string, isError: boolean = false) {
         if (this._currentExecution) {
+            console.log(`Appending output: ${text} (error: ${isError})`);
+            
             if (isError) {
                 this._errorBuffer += text;
             } else {
@@ -182,22 +201,12 @@ export class DebugNotebookController {
             }
             
             // Update the output with the accumulated text
-            const outputs: vscode.NotebookCellOutputItem[] = [];
+            this._updateCellOutput(this._currentExecution);
             
-            if (this._outputBuffer) {
-                outputs.push(vscode.NotebookCellOutputItem.text(this._outputBuffer));
-            }
-            
-            if (this._errorBuffer) {
-                outputs.push(vscode.NotebookCellOutputItem.error({ 
-                    name: 'Error', 
-                    message: this._errorBuffer 
-                }));
-            }
-            
-            if (outputs.length > 0) {
-                const output = new vscode.NotebookCellOutput(outputs);
-                this._currentExecution.replaceOutput(output);
+            // Resolve the output promise if it exists
+            if (this._outputResolve && this._outputBuffer.length > 0) {
+                this._outputResolve();
+                this._outputResolve = undefined;
             }
         }
     }

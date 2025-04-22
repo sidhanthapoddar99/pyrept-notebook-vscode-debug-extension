@@ -18,10 +18,13 @@ export function activate(context: vscode.ExtensionContext) {
     // Create and register notebook controller
     const controller = new DebugNotebookController(context);
     
-    // Register debug adapter tracker
+    // Register debug adapter tracker for Python and Node
     const tracker = new DebugOutputTracker(controller);
     context.subscriptions.push(
-        vscode.debug.registerDebugAdapterTrackerFactory('*', tracker)
+        vscode.debug.registerDebugAdapterTrackerFactory('python', tracker),
+        vscode.debug.registerDebugAdapterTrackerFactory('node', tracker),
+        vscode.debug.registerDebugAdapterTrackerFactory('pwa-node', tracker),
+        vscode.debug.registerDebugAdapterTrackerFactory('*', tracker)  // Fallback
     );
 
     // Register commands

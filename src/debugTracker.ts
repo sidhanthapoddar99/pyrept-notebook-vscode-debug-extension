@@ -18,22 +18,27 @@ class DebugAdapterTracker implements vscode.DebugAdapterTracker {
 
     onDidSendMessage(message: any): void {
         // Log all messages for debugging
-        console.log('Debug adapter message:', message);
+        console.log('Debug adapter message:', JSON.stringify(message, null, 2));
         
         if (message.type === 'event' && message.event === 'output') {
-            const output = message.body?.output || '';
+            const output = message.body?.output;
             const category = message.body?.category || 'stdout';
             
             // Only capture output if we have an active execution
             const execution = this._controller.getCurrentExecution();
-            if (execution) {
+            if (execution && output) {
                 console.log(`Captured output (${category}): ${output}`);
                 
-                // Append output to the buffer
-                if (category === 'stdout' || category === 'console') {
-                    this._controller.appendOutput(output, false);
-                } else if (category === 'stderr' || category === 'important') {
-                    this._controller.appendOutput(output, true);
+                // Check if this is actual output (not empty or just newlines)
+                const hasContent = output.trim().length > 0;
+                
+                if (hasContent) {
+                    // Append output to the buffer
+                    if (category === 'stdout' || category === 'console') {
+                        this._controller.appendOutput(output, false);
+                    } else if (category === 'stderr' || category === 'important') {
+                        this._controller.appendOutput(output, true);
+                    }
                 }
             }
         }
