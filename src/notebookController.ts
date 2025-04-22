@@ -5,6 +5,8 @@ export class DebugNotebookController {
     private _controller: vscode.NotebookController;
     private _currentExecution: vscode.NotebookCellExecution | undefined;
     private _context: vscode.ExtensionContext;
+    private _outputBuffer: string = '';
+    private _errorBuffer: string = '';
 
     constructor(context: vscode.ExtensionContext) {
         this._context = context;
@@ -37,6 +39,10 @@ export class DebugNotebookController {
         this._currentExecution = execution;
         execution.start(Date.now());
         execution.clearOutput();
+        
+        // Reset output buffers
+        this._outputBuffer = '';
+        this._errorBuffer = '';
 
         try {
             // First try to use the active debug session
@@ -91,27 +97,60 @@ export class DebugNotebookController {
 
             // Handle result
             if (response && response.result) {
-                const output = new vscode.NotebookCellOutput([
-                    vscode.NotebookCellOutputItem.text(response.result)
-                ]);
-                execution.appendOutput(output);
+                // Add the evaluate result to the output buffer
+                if (this._outputBuffer && !this._outputBuffer.endsWith('\n')) {
+                    this._outputBuffer += '\n';
+                }
+                this._outputBuffer += response.result;
+                
+                // Update final output
+                if (this._outputBuffer || this._errorBuffer) {
+                    const outputs: vscode.NotebookCellOutputItem[] = [];
+                    
+                    if (this._outputBuffer) {
+                        outputs.push(vscode.NotebookCellOutputItem.text(this._outputBuffer));
+                    }
+                    
+                    if (this._errorBuffer) {
+                        outputs.push(vscode.NotebookCellOutputItem.error({ 
+                            name: 'Error', 
+                            message: this._errorBuffer 
+                        }));
+                    }
+                    
+                    const output = new vscode.NotebookCellOutput(outputs);
+                    execution.replaceOutput(output);
+                }
             }
 
             execution.end(true, Date.now());
         } catch (error: any) {
             console.error('Error executing cell:', error);
             const errorMessage = error?.message || String(error);
-            const errorOutput = new vscode.NotebookCellOutput([
-                vscode.NotebookCellOutputItem.error({
-                    name: 'Error',
-                    message: errorMessage,
-                    stack: error?.stack
-                })
-            ]);
-            execution.appendOutput(errorOutput);
+            
+            // Add error to error buffer
+            this._errorBuffer += errorMessage;
+            
+            // Show final output including any stdout and the error
+            const outputs: vscode.NotebookCellOutputItem[] = [];
+            
+            if (this._outputBuffer) {
+                outputs.push(vscode.NotebookCellOutputItem.text(this._outputBuffer));
+            }
+            
+            outputs.push(vscode.NotebookCellOutputItem.error({
+                name: 'Error',
+                message: this._errorBuffer,
+                stack: error?.stack
+            }));
+            
+            const output = new vscode.NotebookCellOutput(outputs);
+            execution.replaceOutput(output);
             execution.end(false, Date.now());
         } finally {
             this._currentExecution = undefined;
+            this._outputBuffer = '';
+            this._errorBuffer = '';
         }
     }
 
@@ -136,12 +175,30 @@ export class DebugNotebookController {
 
     appendOutput(text: string, isError: boolean = false) {
         if (this._currentExecution) {
-            const outputItem = isError 
-                ? vscode.NotebookCellOutputItem.error({ name: 'Error', message: text })
-                : vscode.NotebookCellOutputItem.text(text);
+            if (isError) {
+                this._errorBuffer += text;
+            } else {
+                this._outputBuffer += text;
+            }
             
-            const output = new vscode.NotebookCellOutput([outputItem]);
-            this._currentExecution.appendOutput(output);
+            // Update the output with the accumulated text
+            const outputs: vscode.NotebookCellOutputItem[] = [];
+            
+            if (this._outputBuffer) {
+                outputs.push(vscode.NotebookCellOutputItem.text(this._outputBuffer));
+            }
+            
+            if (this._errorBuffer) {
+                outputs.push(vscode.NotebookCellOutputItem.error({ 
+                    name: 'Error', 
+                    message: this._errorBuffer 
+                }));
+            }
+            
+            if (outputs.length > 0) {
+                const output = new vscode.NotebookCellOutput(outputs);
+                this._currentExecution.replaceOutput(output);
+            }
         }
     }
 }

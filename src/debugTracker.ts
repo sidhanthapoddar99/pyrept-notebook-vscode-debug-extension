@@ -29,6 +29,7 @@ class DebugAdapterTracker implements vscode.DebugAdapterTracker {
             if (execution) {
                 console.log(`Captured output (${category}): ${output}`);
                 
+                // Append output to the buffer
                 if (category === 'stdout' || category === 'console') {
                     this._controller.appendOutput(output, false);
                 } else if (category === 'stderr' || category === 'important') {
