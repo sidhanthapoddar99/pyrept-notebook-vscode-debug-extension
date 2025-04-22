@@ -68,7 +68,7 @@ vsce package  # Create .vsix file for testing
 
 ### 1. Login to VSCE
 ```bash
-vsce login sid1999
+vsce login <piblisher-id>
 # Enter your PAT when prompted
 ```
 

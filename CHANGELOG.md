@@ -5,7 +5,15 @@ All notable changes to the "Debug Notebook" extension will be documented in this
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2025-04-22
+
+## 1.0.1 - 2025-04-23
+
+### Bug Fixes
+- Fixed issue where output was not displayed for print statements in Python
+- Resolved auto session switching for multithreaded debugging
+
+
+## 1.0.0 - 2025-04-22
 
 ### Added
 - Initial release of Debug Notebook
@@ -36,4 +44,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Requires active debug session
 - Performance may be slower for large computations
 
-[1.0.0]: https://github.com/yourusername/debug-notebook/releases/tag/v1.0.0

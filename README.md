@@ -1,158 +1,168 @@
-# Debug Notebook Extension
+# Debug Notebook for VS Code
 
-[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/sid1999.debug-notebook)](https://marketplace.visualstudio.com/items?itemName=sid1999.debug-notebook)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
+**Interactive notebook interface that connects to your debug sessions** - Debug your code like never before with the power of notebooks!
 
-A VS Code extension that bridges the gap between notebooks and debugging. Debug Notebook provides an interactive notebook interface that automatically connects to active debug sessions, allowing you to explore and manipulate code execution in real-time.
+[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/sidh1999.debug-notebook)](https://marketplace.visualstudio.com/items/?itemName=sidh1999.debug-notebook)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/sidhanthapoddar99/pyrept-notebook-vscode-debug-extension/blob/master/LICENSE)
+<!-- [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com) -->
 
-## Features
+## What is Debug Notebook?
 
-- 🔄 **Automatic Debug Session Connection**: Notebooks automatically connect to any active debug session
-- 🐛 **Full Debug Context**: Access and modify variables, call functions, and explore state while debugging
-- 📓 **Familiar Notebook Interface**: Use code cells just like Jupyter notebooks
-- 💾 **Persistent Debugging Sessions**: Save notebooks to document your debugging process
-- 🎨 **Language Support**: Works with Python and JavaScript debugging
-- ⚡ **Live Execution**: Changes in notebook cells affect the active debug session
+Debug Notebook brings the interactive power of notebooks to your debugging workflow. Instead of just using the debug console, you can now use a full notebook interface that connects automatically to any active debug session.
 
-## Quick Start
+### 🚀 Key Features
 
-1. Install the extension from VS Code Marketplace
-2. Start debugging your code (F5)
-3. When paused at a breakpoint, create or open a `.dnb` file
-4. The notebook automatically connects to your debug session
-5. Run cells to inspect and modify the debug state
+- **Automatic Debug Connection**: Start debugging and open a notebook - it connects automatically!
+- **Interactive Exploration**: Use cells to inspect variables, test fixes, and call functions
+- **Persistent Sessions**: Save your debugging sessions for future reference
+- **Multi-Language Support**: Works with Python and JavaScript debugging
+- **Familiar Interface**: If you've used Jupyter notebooks, you'll feel right at home
+
+## Getting Started
+
+### Installation
+
+1. Install from VS Code Marketplace (search for "Debug Notebook")
+2. Make sure you have the Python extension installed (for Python debugging)
+3. That's it! You're ready to start debugging with notebooks
+
+### Quick Tutorial
+
+1. **Start Debugging**
+   - Set a breakpoint in your code
+   - Press F5 to start debugging
+   - When paused at the breakpoint, create a new Debug Notebook
+
+2. **Create a Debug Notebook**
+   - Use Command Palette: `Debug Notebook: New Debug Notebook`
+   - Or create a file with `.dnb` extension
+
+3. **Write and Run Cells**
+   ```python
+   # Inspect the current state
+   print(locals())  # See all variables
+   
+   # Modify variables
+   x = x * 2
+   
+   # Test functions
+   result = problematic_function(x, y)
+   
+   # Experiment with fixes
+   data = clean_data(data)
+   ```
+
+4. **Save Your Work**
+   - Save the notebook to document your debugging process
+   - Share with teammates to explain issues and solutions
+
+## Why Debug Notebook?
+
+### Traditional Debugging vs Debug Notebook
+
+| Traditional Debug Console | Debug Notebook |
+|--------------------------|----------------|
+| One command at a time | Multiple cells with persistent output |
+| No history after closing | Save debugging sessions |
+| Hard to document process | Built-in documentation |
+| Limited experimentation | Easy to test multiple approaches |
+
+### Perfect For:
+
+- **Complex Debugging**: Test multiple hypotheses without changing source code
+- **Teaching**: Document debugging techniques for education
+- **Team Collaboration**: Share debugging sessions with teammates
+- **Bug Investigation**: Keep a record of what you tried and what worked
+- **Learning**: See how variables change in real-time
+
+## Usage Examples
+
+### Python Debugging Session
 
 ```python
-# Example: At a breakpoint, explore your code
-print(locals())         # See all local variables
-print(x)               # Inspect specific variable
-x = x * 2              # Modify values
-result = func(x, y)    # Call functions in scope
+# Cell 1: Inspect the bug
+print(f"Current value of user_data: {user_data}")
+print(f"Exception occurred at: {e}")
+
+# Cell 2: Test a fix
+try:
+    fixed_data = clean_user_data(user_data)
+    process_user(fixed_data)
+    print("Fix works!")
+except Exception as e:
+    print(f"Still failing: {e}")
+
+# Cell 3: Explore alternative approach
+from alternative_lib import better_processor
+result = better_processor(user_data)
+print(f"Alternative result: {result}")
 ```
+
+### JavaScript Debugging Session
+
+```javascript
+// Cell 1: Check current state
+console.log('Current array:', problematicArray);
+console.log('Item count:', problematicArray.length);
+
+// Cell 2: Test array manipulation
+const filtered = problematicArray.filter(item => item.valid);
+console.log('Filtered items:', filtered);
+
+// Cell 3: Fix and verify
+problematicArray = filtered;
+processArray(problematicArray);
+console.log('Processing successful!');
+```
+
+## Tips and Tricks
+
+1. **Use Markdown Cells**: Document your investigation process
+2. **Save Frequently**: Keep your debugging sessions for future reference
+3. **Keyboard Shortcuts**: `Shift+Enter` to run cell and move to next
+4. **Clear Output**: Use "Clear All Outputs" to clean up
+5. **Multiple Sessions**: Run separate debug sessions for different issues
+
+## Troubleshooting
+
+### Common Issues
+
+1. **"No active debug session"**
+   - Make sure you've started debugging first (F5)
+   - Check that the debugger is paused at a breakpoint
+
+2. **Cells not running**
+   - Verify the kernel is selected (Debug Console Kernel)
+   - Check that appropriate debug extension is installed
+
+3. **No output appearing**
+   - Use `print()` or `console.log()` for output
+   - Check the Debug Console for errors
 
 ## Requirements
 
 - VS Code 1.90.0 or later
-- Python extension (for Python debugging)
-- Active debug session to connect to
+- Language-specific debug extensions:
+  - Python: Python extension by Microsoft
+  - JavaScript: Built-in debugger
 
-## Usage
+## Known Limitations
 
-### Creating Debug Notebooks
-
-- **Command Palette**: "Debug Notebook: New Debug Notebook"
-- **File Explorer**: Create a file with `.dnb` extension
-
-### Running Cells
-
-- Press `Shift+Enter` or click the play button
-- Output appears directly below each cell
-- Errors are displayed with full stack traces
-
-### Automatic Connection
-
-Debug Notebooks automatically detect and connect to any active debug session. No manual configuration needed!
-
-## Publishing to VS Code Marketplace
-
-### Prerequisites
-
-1. Create a Microsoft Azure DevOps account
-2. Create a Personal Access Token (PAT):
-   - Go to https://dev.azure.com
-   - Click on User Settings (profile icon) > Personal Access Tokens
-   - Create new token with "Marketplace (Publish)" scope
-3. Install vsce: `npm install -g @vscode/vsce`
-
-### Publishing Steps
-
-1. **Clean and Prepare**
-   ```bash
-   # Clean dependencies
-   rm -rf node_modules
-   npm install --production=false
-   
-   # Compile
-   npm run compile
-   
-   # Create necessary directories if they don't exist
-   mkdir -p icons
-   
-   # Ensure icons are present
-   cp src/icons/* icons/
-   ```
-
-2. **Create Publisher**
-   ```bash
-   vsce create-publisher sid1999 # Use your publisher name
-   ```
-
-3. **Login and Publish**
-   ```bash
-   # Login with your PAT
-   vsce login sid1999
-   
-   # Package extension
-   vsce package
-   
-   # Publish to marketplace
-   vsce publish
-   ```
-
-4. **Update Extension**
-   ```bash
-   # Increment version and publish
-   vsce publish minor  # for 1.0.0 -> 1.1.0
-   vsce publish patch  # for 1.0.0 -> 1.0.1
-   vsce publish major  # for 1.0.0 -> 2.0.0
-   ```
-
-### Verification
-
-- Visit https://marketplace.visualstudio.com/manage/publishers/sid1999
-- Check your extension at https://marketplace.visualstudio.com/items?itemName=sid1999.debug-notebook
-
-## Development
-
-```bash
-# Clone repository
-git clone https://github.com/yourusername/debug-notebook.git
-
-# Install dependencies
-npm install
-
-# Compile
-npm run compile
-
-# Run extension
-Press F5 in VS Code
-```
-
-## Release Notes
-
-### 1.0.0
-
-- Automatic debug session connection
-- Streamlined user interface
-- Added custom icon for .dnb files
-- Improved error handling
-- Enhanced documentation
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-MIT License - see [LICENSE](LICENSE) file for details
-
-## Acknowledgments
-
-This extension leverages VS Code's excellent Notebook API and Debug Adapter Protocol to create a unique debugging experience. Special thanks to the VS Code team for making this possible.
+- Text output only (no graphs or rich media)
+- Requires active debug session
+- Limited to languages with debug adapter support
 
 ## Support
 
-- **Issues**: Report bugs at https://github.com/yourusername/debug-notebook/issues
-- **Feature Requests**: Open an issue with the "enhancement" label
-- **Contact**: sidhantha1999@gmail.com
+- 📝 Report issues: [GitHub Issues](https://github.com/yourusername/debug-notebook/issues)
+- 💡 Feature requests: [GitHub Discussions](https://github.com/yourusername/debug-notebook/discussions)
+- 📧 Contact: sidhanthapoddar99@gmail.com
+
+## License
+
+MIT License - Free to use in personal and commercial projects.
+
+---
+
+**Made with ❤️ for developers who love efficient debugging**
+

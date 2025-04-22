@@ -2,8 +2,8 @@
   "name": "debug-notebook",
   "displayName": "Debug Notebook",
   "description": "Interactive notebook interface that connects to your debug sessions - Debug your code like never before with the power of notebooks!",
-  "version": "1.0.0",
-  "publisher": "sid1999",
+  "version": "1.0.1",
+  "publisher": "sidh1999",
   "author": {
     "name": "Sidhantha Poddar",
     "email": "sidhantha1999@gmail.com"
@@ -26,7 +26,7 @@
     "interactive",
     "REPL"
   ],
-  "icon": "icons/dnb-icon-large.ico",
+  "icon": "icons/dnb-icon-large.png",
   "galleryBanner": {
     "color": "#7B3FE4",
     "theme": "dark"
@@ -103,12 +103,12 @@
     "@typescript-eslint/parser": "^6.7.0",
     "eslint": "^8.26.0",
     "typescript": "^5.2.2",
-    "@vscode/vsce": "^2.22.0"
+    "@vscode/vsce": "^3.3.0"
   },
   "badges": [
     {
-      "url": "https://img.shields.io/visual-studio-marketplace/v/sid1999.debug-notebook",
-      "href": "https://marketplace.visualstudio.com/items?itemName=sid1999.debug-notebook",
+      "url": "https://img.shields.io/visual-studio-marketplace/v/sidh1999.debug-notebook",
+      "href": "https://marketplace.visualstudio.com/items?itemName=sidh1999.debug-notebook",
       "description": "VS Code Marketplace Version"
     },
     {
