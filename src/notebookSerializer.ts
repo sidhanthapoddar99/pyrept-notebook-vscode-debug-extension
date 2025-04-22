@@ -1,26 +1,53 @@
-// FILE: src/notebookSerializer.ts
-import * as vscode from "vscode";
+// src/notebookSerializer.ts
+import * as vscode from 'vscode';
 
-export interface RawCell {
-  language: string;
-  value: string;
+interface NotebookFileFormat {
+    cells: {
+        language: string;
+        value: string;
+        kind: vscode.NotebookCellKind;
+    }[];
 }
 
-export class PyReplSerializer implements vscode.NotebookSerializer {
-  deserializeNotebook(content: Uint8Array): vscode.NotebookData {
-    if (content.length === 0) {
-      // fresh notebook → one empty Python cell
-      const cell = new vscode.NotebookCellData(vscode.NotebookCellKind.Code, "", "python");
-      return new vscode.NotebookData([cell]);
+export class DebugNotebookSerializer implements vscode.NotebookSerializer {
+    async deserializeNotebook(
+        content: Uint8Array,
+        _token: vscode.CancellationToken
+    ): Promise<vscode.NotebookData> {
+        const text = Buffer.from(content).toString('utf8');
+        let fileData: NotebookFileFormat;
+
+        try {
+            fileData = JSON.parse(text);
+        } catch {
+            // Handle corrupted file or empty file
+            fileData = { cells: [] };
+        }
+
+        const cells = fileData.cells.map(cell => {
+            return new vscode.NotebookCellData(
+                cell.kind || vscode.NotebookCellKind.Code,
+                cell.value,
+                cell.language || 'python'
+            );
+        });
+
+        return new vscode.NotebookData(cells);
     }
 
-    const raw: RawCell[] = JSON.parse(Buffer.from(content).toString("utf8"));
-    const cells = raw.map(c => new vscode.NotebookCellData(vscode.NotebookCellKind.Code, c.value, c.language));
-    return new vscode.NotebookData(cells);
-  }
+    async serializeNotebook(
+        data: vscode.NotebookData,
+        _token: vscode.CancellationToken
+    ): Promise<Uint8Array> {
+        const fileData: NotebookFileFormat = {
+            cells: data.cells.map(cell => ({
+                language: cell.languageId,
+                value: cell.value,
+                kind: cell.kind
+            }))
+        };
 
-  serializeNotebook(data: vscode.NotebookData): Uint8Array {
-    const raw: RawCell[] = data.cells.map(cell => ({ language: cell.languageId, value: cell.value }));
-    return Buffer.from(JSON.stringify(raw, null, 2), "utf8");
-  }
+        const text = JSON.stringify(fileData, null, 2);
+        return Buffer.from(text, 'utf8');
+    }
 }

@@ -1,121 +1,182 @@
-import * as vscode from "vscode";
+// src/notebookController.ts
+import * as vscode from 'vscode';
 
-export class PyReplNotebookController implements vscode.Disposable {
-  readonly controller: vscode.NotebookController;
-  private _debugSession: vscode.DebugSession | undefined;
-  private _currentExecution: vscode.NotebookCellExecution | undefined;
+export class DebugNotebookController {
+    private _controller: vscode.NotebookController;
+    private _debugSessions: Map<string, vscode.DebugSession> = new Map();
+    private _currentExecution: vscode.NotebookCellExecution | undefined;
+    private _context: vscode.ExtensionContext;
 
-  constructor() {
-    this.controller = vscode.notebooks.createNotebookController(
-      "pyrepl-notebook-controller",
-      "pyrepl-notebook",
-      "Python REPL"
-    );
-    this.controller.supportedLanguages = ["python"];
-    this.controller.executeHandler = this._executeCells.bind(this);
-  }
+    constructor(context: vscode.ExtensionContext) {
+        this._context = context;
+        this._controller = vscode.notebooks.createNotebookController(
+            'debug-notebook-controller',
+            'debug-notebook',
+            'Debug Console Kernel'
+        );
 
-  // region — debug session helpers
-  private async _ensureDebugSession(): Promise<vscode.DebugSession> {
-    if (this._debugSession) {
-        return this._debugSession;
+        this._controller.supportedLanguages = ['python', 'javascript'];
+        this._controller.supportsExecutionOrder = true;
+        this._controller.description = 'Execute code in debug console';
+        this._controller.executeHandler = this._executeHandler.bind(this);
+
+        context.subscriptions.push(this._controller);
     }
 
-    const wsFolder = vscode.workspace.workspaceFolders?.[0];
-    const config: vscode.DebugConfiguration = {
-      name: "PyREPL‑inline",
-      type: "python",
-      request: "launch",
-      program: "${file}", // placeholder; debugpy only needs a target
-      console: "integratedTerminal"
-    };
+    private async _executeHandler(
+        cells: vscode.NotebookCell[],
+        notebook: vscode.NotebookDocument,
+        controller: vscode.NotebookController
+    ): Promise<void> {
+        for (const cell of cells) {
+            await this.executeCell(cell);
+        }
+    }
 
-    await vscode.debug.startDebugging(wsFolder, config, {
-      consoleMode: vscode.DebugConsoleMode.MergeWithParent
-    });
+    async executeCell(cell: vscode.NotebookCell): Promise<void> {
+        const execution = this._controller.createNotebookCellExecution(cell);
+        this._currentExecution = execution;
+        execution.start(Date.now());
+        execution.clearOutput();
 
-    // grab the newly created session
-    this._debugSession = vscode.debug.activeDebugSession!;
-    return this._debugSession;
-  }
-  // endregion
+        try {
+            const session = await this._ensureDebugSession(cell.document.languageId);
+            const code = this._prepareCode(cell.document.getText(), cell.document.languageId);
+            
+            // Get current stack frame if debugger is paused
+            let frameId: number | undefined;
+            if (session.type === 'python' || session.type === 'pwa-node') {
+                try {
+                    const threads = await session.customRequest('threads', {});
+                    if (threads.threads && threads.threads.length > 0) {
+                        const stackTrace = await session.customRequest('stackTrace', {
+                            threadId: threads.threads[0].id
+                        });
+                        if (stackTrace.stackFrames && stackTrace.stackFrames.length > 0) {
+                            frameId = stackTrace.stackFrames[0].id;
+                        }
+                    }
+                } catch (e) {
+                    // Ignore errors - use global scope
+                }
+            }
+            
+            const response = await session.customRequest('evaluate', {
+                expression: code,
+                context: 'repl',
+                frameId: frameId
+            });
 
-  private async _executeCells(cells: vscode.NotebookCell[]) {
-    const session = await this._ensureDebugSession();
+            // Handle result
+            if (response && response.result && response.result.length > 0) {
+                const output = new vscode.NotebookCellOutput([
+                    vscode.NotebookCellOutputItem.text(response.result)
+                ]);
+                execution.appendOutput(output);
+            }
 
-    for (const cell of cells) {
-      const execution = this.controller.createNotebookCellExecution(cell);
-      this._currentExecution = execution; // make tracker append here
-      execution.start(Date.now());
+            execution.end(true, Date.now());
+        } catch (error) {
+            const errorOutput = new vscode.NotebookCellOutput([
+                vscode.NotebookCellOutputItem.error(error as Error)
+            ]);
+            execution.appendOutput(errorOutput);
+            execution.end(false, Date.now());
+        } finally {
+            this._currentExecution = undefined;
+        }
+    }
 
-      try {
-        const code = cell.document.getText();
-        const expression = this._wrapForEvaluate(code);
-        const evalResult = await session.customRequest("evaluate", {
-          expression,
-          context: "repl"
+    private async _ensureDebugSession(language: string): Promise<vscode.DebugSession> {
+        // First, check if there's an active debug session of the right type
+        const activeSession = vscode.debug.activeDebugSession;
+        if (activeSession && activeSession.type.includes(language)) {
+            return activeSession;
+        }
+
+        const notebookUri = vscode.window.activeNotebookEditor?.notebook.uri.toString() || 'default';
+        
+        let session = this._debugSessions.get(notebookUri);
+        if (session && session.type.includes(language)) {
+            return session;
+        }
+
+        // Start new debug session
+        const config = this._getDebugConfig(language);
+        const started = await vscode.debug.startDebugging(undefined, config);
+        
+        if (!started) {
+            throw new Error(`Failed to start debug session for ${language}`);
+        }
+
+        session = vscode.debug.activeDebugSession!;
+        this._debugSessions.set(notebookUri, session);
+
+        // Listen for session termination
+        const disposable = vscode.debug.onDidTerminateDebugSession(terminatedSession => {
+            if (terminatedSession === session) {
+                this._debugSessions.delete(notebookUri);
+                disposable.dispose();
+            }
         });
 
-        // show the returned repr (if any); stdout/stderr will stream via tracker
-        const resultText = evalResult?.result ?? "";
-        if (resultText) {
-          execution.replaceOutput([new vscode.NotebookCellOutput([vscode.NotebookCellOutputItem.text(resultText)])]);
-        }
-        execution.end(true);
-      } catch (err: any) {
-        execution.replaceOutput([new vscode.NotebookCellOutput([vscode.NotebookCellOutputItem.text(String(err))])]);
-        execution.end(false);
-      }
+        this._context.subscriptions.push(disposable);
+        return session;
     }
-  }
 
-  /** Convert multiline Python into a single expression for DAP evaluate */
-  private _wrapForEvaluate(code: string): string {
-    if (!code.includes("\n")) {
-      return code;
+    private _getDebugConfig(language: string): vscode.DebugConfiguration {
+        switch (language) {
+            case 'python':
+                return {
+                    type: 'python',
+                    request: 'launch',
+                    name: 'Debug Notebook Python',
+                    console: 'internalConsole',
+                    justMyCode: false,
+                    // Use a simple Python REPL approach
+                    module: 'code',
+                    args: []
+                };
+            case 'javascript':
+                return {
+                    type: 'pwa-node',
+                    request: 'launch',
+                    name: 'Debug Notebook JavaScript',
+                    console: 'internalConsole',
+                    // Start Node in interactive mode
+                    program: 'node',
+                    args: ['-i']
+                };
+            default:
+                throw new Error(`Unsupported language: ${language}`);
+        }
     }
-    // escape and wrap in exec("…")
-    const escaped = code.replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/\"/g, "\\\"");
-    return `exec(\"${escaped}\")`;
-  }
 
-  // called by debug tracker
-// src/notebookController.ts
-    appendStream(data: string) {
-        if (!this._currentExecution) {
-        return;
+    private _prepareCode(code: string, language: string): string {
+        const lines = code.split('\n');
+        
+        if (language === 'python' && lines.length > 1) {
+            // Wrap multi-line Python code in exec()
+            const escapedCode = code.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n');
+            return `exec("${escapedCode}")`;
         }
-    
-        // Decode the first output item’s data (if any) to plain text
-        let existing = "";
-        const firstItem = this._currentExecution.cell.outputs[0]?.items[0];
-        if (firstItem) {
-        try {
-            existing = new TextDecoder().decode(firstItem.data);
-        } catch {
-            existing = "";
-        }
-        }
-    
-        const combined = existing + data;
-    
-        this._currentExecution.replaceOutput([
-        new vscode.NotebookCellOutput([
-            vscode.NotebookCellOutputItem.text(combined)
-        ])
-        ]);
+        
+        // For JavaScript or single-line code, return as-is
+        return code;
     }
-  
 
-  // picker for tracker
-  get debugSession(): vscode.DebugSession | undefined {
-    return this._debugSession;
-  }
-  set debugSession(v: vscode.DebugSession | undefined) {
-    this._debugSession = v;
-  }
+    getCurrentExecution(): vscode.NotebookCellExecution | undefined {
+        return this._currentExecution;
+    }
 
-  dispose() {
-    this.controller.dispose();
-  }
+    appendOutput(text: string, isError: boolean = false) {
+        if (this._currentExecution) {
+            const outputItem = isError 
+                ? vscode.NotebookCellOutputItem.error(new Error(text))
+                : vscode.NotebookCellOutputItem.text(text);
+            
+            const output = new vscode.NotebookCellOutput([outputItem]);
+            this._currentExecution.appendOutput(output);
+        }
+    }
 }

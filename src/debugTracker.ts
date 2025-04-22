@@ -1,31 +1,43 @@
-// FILE: src/debugTracker.ts
-import * as vscode from "vscode";
-import { PyReplNotebookController } from "./notebookController";
+// src/debugTracker.ts
+import * as vscode from 'vscode';
+import { DebugNotebookController } from './notebookController';
 
-/**
- * Attaches a tracker so all `output` events from the Python debug adapter
- * are piped back into the *currently running* cell execution.
- */
-export function registerDebugTracker(context: vscode.ExtensionContext, ctrl: PyReplNotebookController) {
-  const factory: vscode.DebugAdapterTrackerFactory = {
-    createDebugAdapterTracker(session) {
-      // only Python sessions we started
-      if (session.type !== "python" || session !== ctrl.debugSession) {
-        return;
-      }
+export class DebugOutputTracker implements vscode.DebugAdapterTrackerFactory {
+    constructor(private _controller: DebugNotebookController) {}
 
-      return {
-        onDidSendMessage: msg => {
-          if (msg.type === "event" && msg.event === "output") {
-            const body = msg.body as { output: string; category?: string };
-            ctrl.appendStream(body.output);
-          }
-        },
-        onWillStopSession: () => {
-          ctrl.debugSession = undefined;
-        }
-      } satisfies vscode.DebugAdapterTracker;
+    createDebugAdapterTracker(session: vscode.DebugSession): vscode.ProviderResult<vscode.DebugAdapterTracker> {
+        return new DebugAdapterTracker(this._controller);
     }
-  };
-  context.subscriptions.push(vscode.debug.registerDebugAdapterTrackerFactory("python", factory));
+}
+
+class DebugAdapterTracker implements vscode.DebugAdapterTracker {
+    private _outputBuffer: string = '';
+
+    constructor(private _controller: DebugNotebookController) {}
+
+    onDidSendMessage(message: any): void {
+        if (message.type === 'event' && message.event === 'output') {
+            const output = message.body?.output || '';
+            const category = message.body?.category || 'stdout';
+            
+            const execution = this._controller.getCurrentExecution();
+            if (execution) {
+                // Handle different output categories
+                if (category === 'stdout' || category === 'console') {
+                    this._controller.appendOutput(output, false);
+                } else if (category === 'stderr') {
+                    this._controller.appendOutput(output, true);
+                }
+            }
+        }
+    }
+
+    onWillStartSession(): void {
+        // Reset output buffer when session starts
+        this._outputBuffer = '';
+    }
+
+    onWillStopSession(): void {
+        // Cleanup if needed
+    }
 }
