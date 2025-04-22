@@ -1,109 +1,120 @@
 # Debug Notebook Extension
 
-A VS Code extension that provides a notebook interface where code cells execute directly in the debug console, combining the interactive experience of notebooks with the power of VS Code's debugging capabilities.
+A VS Code extension that bridges the gap between notebooks and debugging. Debug Notebook provides an interactive notebook interface that automatically connects to active debug sessions, allowing you to explore and manipulate code execution in real-time.
 
 ## Features
 
-- 📓 Create and edit notebook files with `.dnb` extension
-- 🐍 Support for Python and JavaScript code execution
-- 🔄 Persistent state between cell executions
-- 🐛 Integration with VS Code's debug infrastructure
-- 📝 Mix code and markdown cells for documentation
-- 💾 Save and load notebook files
+- 🔄 **Automatic Debug Session Connection**: Notebooks automatically connect to any active debug session
+- 🐛 **Full Debug Context**: Access and modify variables, call functions, and explore state while debugging
+- 📓 **Familiar Notebook Interface**: Use code cells just like Jupyter notebooks
+- 💾 **Persistent Debugging Sessions**: Save notebooks to document your debugging process
+- 🎨 **Language Support**: Works with Python and JavaScript debugging
+- ⚡ **Live Execution**: Changes in notebook cells affect the active debug session
+
+## Quick Start
+
+1. Install the extension from VS Code Marketplace
+2. Start debugging your code (F5)
+3. When paused at a breakpoint, create or open a `.dnb` file
+4. The notebook automatically connects to your debug session
+5. Run cells to inspect and modify the debug state
+
+```python
+# Example: At a breakpoint, explore your code
+print(locals())         # See all local variables
+print(x)               # Inspect specific variable
+x = x * 2              # Modify values
+result = func(x, y)    # Call functions in scope
+```
 
 ## Requirements
 
 - VS Code 1.90.0 or later
-- Python extension (for Python support)
-- Node.js (for JavaScript support)
+- Python extension (for Python debugging)
+- Active debug session to connect to
 
-## Installation
+## Usage
 
-1. Download from VS Code Marketplace (when published)
-2. Or install from VSIX file:
-   - Download the `.vsix` file
-   - In VS Code, go to Extensions view
-   - Click "..." menu → "Install from VSIX..."
+### Creating Debug Notebooks
 
-## Quick Start
+- **Command Palette**: "Debug Notebook: New Debug Notebook"
+- **File Explorer**: Create a file with `.dnb` extension
 
-1. Create a new Debug Notebook:
-   - Command Palette → "Debug Notebook: New Debug Notebook"
-   - Or create a file with `.dnb` extension
+### Running Cells
 
-2. Write code in cells:
+- Press `Shift+Enter` or click the play button
+- Output appears directly below each cell
+- Errors are displayed with full stack traces
+
+### Automatic Connection
+
+Debug Notebooks automatically detect and connect to any active debug session. No manual configuration needed!
+
+## Example Workflow
+
+1. Set breakpoints in your code
+2. Start debugging (F5)
+3. When paused, open a Debug Notebook
+4. Explore the current state:
    ```python
-   # Python example
-   message = "Hello, Debug Notebook!"
-   print(message)
+   # See all variables
+   print(locals())
+   
+   # Modify values
+   data = data * 2
+   
+   # Test fixes
+   result = problematic_function(data)
    ```
 
-3. Run cells using the play button or `Shift+Enter`
+## Advantages Over Traditional Debugging
 
-## How It Works
+- **Interactive Exploration**: Test hypotheses without modifying source code
+- **Documentation**: Save debugging sessions for future reference
+- **Experimentation**: Try multiple approaches in separate cells
+- **State Manipulation**: Modify variables and see immediate effects
 
-This extension uses VS Code's Debug Adapter Protocol to execute code cells. Instead of running a separate kernel process like Jupyter, it leverages existing debug adapters:
+## Known Limitations
 
-- Code execution happens via DAP `evaluate` requests
-- Output is captured through debug output events
-- State persists within the debug session
-- No separate kernel process needed
+- Text output only (no graphs or rich media)
+- Requires active debug session
+- Limited to languages with debug adapter support
 
 ## Development
 
-### Setup
-
 ```bash
-# Clone the repository
+# Clone repository
 git clone https://github.com/yourusername/debug-notebook.git
-cd debug-notebook
 
 # Install dependencies
 npm install
 
 # Compile
 npm run compile
+
+# Run extension
+Press F5 in VS Code
 ```
-
-### Testing
-
-```bash
-# Run tests
-npm test
-
-# Debug the extension
-# Press F5 in VS Code
-```
-
-### Building
-
-```bash
-# Package extension
-vsce package
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
-
-## Known Issues
-
-- Rich output (graphs, images) not supported
-- Breakpoints cannot be set directly in cell code
-- Performance may be slower than native execution for heavy computations
 
 ## Release Notes
+
+### 1.0.0
+
+- Automatic debug session connection
+- Streamlined user interface
+- Added custom icon for .dnb files
+- Improved error handling
+- Enhanced documentation
 
 ### 0.0.1
 
 - Initial release
 - Basic notebook functionality
-- Python and JavaScript support
-- Debug console integration
+- Manual session connection
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
@@ -111,6 +122,4 @@ MIT License - see [LICENSE](LICENSE) file for details
 
 ## Acknowledgments
 
-- Inspired by VS Code's Notebook API examples
-- Built on top of the Debug Adapter Protocol
-- Thanks to the VS Code extension development community
+This extension leverages VS Code's excellent Notebook API and Debug Adapter Protocol to create a unique debugging experience. Special thanks to the VS Code team for making this possible.

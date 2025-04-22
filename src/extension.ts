@@ -37,40 +37,8 @@ export function activate(context: vscode.ExtensionContext) {
         })
     );
 
-    context.subscriptions.push(
-        vscode.commands.registerCommand('debugNotebook.runCell', () => {
-            const editor = vscode.window.activeNotebookEditor;
-            if (editor) {
-                const cell = editor.notebook.cellAt(editor.selections[0].start);
-                controller.executeCell(cell);
-            }
-        })
-    );
-
-    // New command to use with existing debug session
-    context.subscriptions.push(
-        vscode.commands.registerCommand('debugNotebook.openWithActiveSession', async () => {
-            if (!vscode.debug.activeDebugSession) {
-                vscode.window.showErrorMessage('No active debug session. Start debugging first.');
-                return;
-            }
-
-            const language = vscode.debug.activeDebugSession.type.includes('python') ? 'python' : 
-                            vscode.debug.activeDebugSession.type.includes('node') ? 'javascript' : 
-                            'python';
-
-            const notebookData = new vscode.NotebookData([
-                new vscode.NotebookCellData(
-                    vscode.NotebookCellKind.Code, 
-                    `# Debug Notebook connected to active session\n# You can inspect and manipulate variables in the current debug context\n\n# Example: print local variables\nprint(locals())`, 
-                    language
-                )
-            ]);
-            
-            const document = await vscode.workspace.openNotebookDocument('debug-notebook', notebookData);
-            await vscode.window.showNotebookDocument(document);
-        })
-    );
+    // Note: No need for runCell command anymore as Shift+Enter works by default
+    // Note: No need for openWithActiveSession anymore as it connects automatically
 }
 
 export function deactivate() {

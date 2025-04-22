@@ -3,7 +3,7 @@
   "displayName": "Debug Notebook",
   "description": "Notebook interface using debug console as execution engine",
   "version": "0.0.1",
-  "publisher": "your-publisher-name",
+  "publisher": "sid1999",
   "engines": {
     "vscode": "^1.90.0"
   },
@@ -14,8 +14,7 @@
   ],
   "activationEvents": [
     "onNotebook:debug-notebook",
-    "onCommand:debugNotebook.newNotebook",
-    "onCommand:debugNotebook.runCell"
+    "onCommand:debugNotebook.newNotebook"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -30,20 +29,21 @@
         ]
       }
     ],
+    "languages": [
+      {
+        "id": "dnb",
+        "extensions": [".dnb"],
+        "aliases": ["Debug Notebook", "dnb"],
+        "icon": {
+          "light": "./icons/dnb-icon.svg",
+          "dark": "./icons/dnb-icon.svg"
+        }
+      }
+    ],
     "commands": [
       {
         "command": "debugNotebook.newNotebook",
         "title": "New Debug Notebook",
-        "category": "Debug Notebook"
-      },
-      {
-        "command": "debugNotebook.runCell",
-        "title": "Run Cell",
-        "category": "Debug Notebook"
-      },
-      {
-        "command": "debugNotebook.openWithActiveSession",
-        "title": "Open Debug Notebook with Active Session",
         "category": "Debug Notebook"
       }
     ],

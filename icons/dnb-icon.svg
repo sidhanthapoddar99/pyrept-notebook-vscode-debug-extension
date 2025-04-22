@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">
+  <!-- Scaled notebook icon to fit 32×32 viewport -->
+  <g transform="translate(2.5263158, 0) scale(0.1)">
+    <!-- Notebook body: 70×85px -->
+    <rect x="0" y="0" width="70" height="85" rx="8" ry="8" fill="#7B3FE4"/>
+
+    <!-- Top label – 48×7.2px -->
+    <rect x="11" y="10" width="48" height="7.2" rx="3" fill="#FFFFFF"/>
+
+    <!-- Side tabs: 6×10px -->
+    <rect x="70" y="10" width="6" height="10" rx="2" fill="#E53935"/>
+    <rect x="70" y="30" width="6" height="10" rx="2" fill="#FB8C00"/>
+    <rect x="70" y="50" width="6" height="10" rx="2" fill="#43A047"/>
+
+    <!-- Magenta play/debug triangle (≈23×23px) -->
+    <polygon points="58.5,69 81.5,80.5 58.5,92" fill="#E91E63"/>
+  </g>
+</svg>
