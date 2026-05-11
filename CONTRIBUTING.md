@@ -270,7 +270,36 @@ dev-workspace fixtures, mise config, and `pyproject.toml` are excluded by
 
 ## Publishing to the marketplace
 
-One-time setup:
+Two ways to publish, depending on how often you release.
+
+### Option A — manual upload via the web UI (simplest, no PAT)
+
+Good for one-off releases or first-time publishers who don't want to set up
+an Azure DevOps PAT.
+
+1. **Build the `.vsix`** locally:
+
+   ```bash
+   mise run compile
+   mise run package          # → dist/debug-notebook-<version>.vsix
+   ```
+
+2. Open <https://marketplace.visualstudio.com/manage/publishers/sidh1999>
+   (or your publisher ID). Sign in with the Microsoft account that owns the
+   publisher.
+3. Click **"New extension" → "Visual Studio Code"** for a first release, or
+   the **upload icon** next to an existing extension row to publish a new
+   version. Drag-drop or browse to the `.vsix`.
+4. Marketplace runs validation (icon, README, manifest) and starts indexing.
+   The new version usually appears within a few minutes; users get the
+   update through VS Code's auto-update channel within ~an hour.
+
+No CLI auth required, no PAT to manage. Trade-off: it's a few extra clicks
+per release.
+
+### Option B — CLI publish via `vsce` (scriptable, no clicks)
+
+Best for regular releases or CI. One-time setup:
 
 1. Create a publisher account at <https://marketplace.visualstudio.com/manage>
    (sign in with a Microsoft account). The publisher ID used here is
@@ -283,24 +312,31 @@ One-time setup:
 
    ```bash
    cd extension
-   bunx --bun vsce create-publisher <publisher-id>   # only on first publish
-   bunx --bun vsce login <publisher-id>              # paste the PAT
+   bunx --bun vsce create-publisher <publisher-id>   # only if the publisher doesn't already exist
+   bunx --bun vsce login <publisher-id>              # paste the PAT when prompted
    ```
+
+   The PAT is cached in the system keychain so step 3 only needs to be run
+   once per machine (or when the PAT expires).
 
 Each release:
 
 ```bash
-# bump the version in extension/package.json, write a CHANGELOG.md entry, then:
+# bump version in extension/package.json, write CHANGELOG.md entry, then:
 mise run compile
 cd extension && bunx --bun vsce publish        # or: vsce publish patch|minor|major
 ```
 
-`vsce publish patch|minor|major` does the version bump for you (use it instead
-of editing `package.json` by hand).
+`vsce publish patch|minor|major` does the version bump for you (use it
+instead of editing `package.json` by hand).
+
+### After either path
 
 Verify the result at
-`https://marketplace.visualstudio.com/items?itemName=<publisher>.debug-notebook`
-and install it from inside VS Code as a smoke test before announcing.
+`https://marketplace.visualstudio.com/items?itemName=<publisher>.debug-notebook`.
+Install it from inside VS Code (`Extensions` → search "Debug Notebook"
+or `code --install-extension debug-notebook-<version>.vsix`) as a smoke
+test before announcing.
 
 ### Pre-publish sanity checklist
 
