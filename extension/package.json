@@ -2,7 +2,7 @@
   "name": "debug-notebook",
   "displayName": "Debug Notebook",
   "description": "Interactive notebook interface that connects to your debug sessions - Debug your code like never before with the power of notebooks!",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "publisher": "sidh1999",
   "author": {
     "name": "Sidhantha Poddar",
@@ -39,10 +39,6 @@
     "url": "https://github.com/sidhanthapoddar99/pyrept-notebook-vscode-debug-extension/issues"
   },
   "license": "MIT",
-  "activationEvents": [
-    "onNotebook:debug-notebook",
-    "onCommand:debugNotebook.newNotebook"
-  ],
   "main": "./out/extension.js",
   "contributes": {
     "notebooks": [
@@ -87,7 +83,7 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "bun run compile",
+    "vscode:prepublish": "tsc -p ./",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "lint": "eslint src --ext ts",

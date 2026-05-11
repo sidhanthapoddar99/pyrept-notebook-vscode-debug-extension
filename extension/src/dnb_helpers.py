@@ -23,6 +23,14 @@ import ast as _ast
 import builtins as _builtins
 
 
+if not hasattr(_builtins, "__dnb_keep_figures__"):
+    _builtins.__dnb_keep_figures__ = False
+
+
+def _dnb_keep_figures(value=True):
+    _builtins.__dnb_keep_figures__ = bool(value)
+
+
 _SENTINEL_PREFIX = "<<<DNB:"
 _SENTINEL_SUFFIX = ":DNB>>>"
 
@@ -97,7 +105,8 @@ def _dnb_flush_pyplot():
         import matplotlib.pyplot as _plt
         for num in _plt.get_fignums():
             _dnb_emit_figure(_plt.figure(num))
-        _plt.close("all")
+        if not getattr(_builtins, "__dnb_keep_figures__", False):
+            _plt.close("all")
     except Exception:
         pass
 
@@ -141,3 +150,4 @@ def _dnb_run(code, _globals, _locals):
 
 _builtins.__dnb_run__ = _dnb_run
 _builtins.__dnb_render__ = _dnb_render
+_builtins.__dnb_keep_figures = _dnb_keep_figures

@@ -7,13 +7,19 @@ uv = "latest"
 _.path = ["{{config_root}}/.venv/bin"]
 VIRTUAL_ENV = "{{config_root}}/.venv"
 
-[tasks.setup]
-description = "Install JS deps (bun, inside extension/) and create/sync the Python venv (uv)."
+[tasks.setup_js]
+dir = "{{config_root}}/extension"
+run = "bun install"
+
+[tasks.setup_py]
 run = [
-    "cd extension && bun install",
     "uv venv --python 3.14 .venv",
     "uv sync --inexact",
 ]
+
+[tasks.setup]
+description = "Install JS deps (bun, inside extension/) and create/sync the Python venv (uv)."
+depends = ["setup_js", "setup_py"]
 
 [tasks.compile]
 description = "Compile the extension."

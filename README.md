@@ -148,7 +148,8 @@ console.log('Processing successful!');
 
 ## Known Limitations
 
-- Text output only (no graphs or rich media)
+- JavaScript debug sessions get text-only output (rich rendering is Python-only)
+- DAP `evaluate` is not interruptible mid-cell — cancellation marks the cell as failed in the UI but the underlying call continues server-side
 - Requires active debug session
 - Limited to languages with debug adapter support
 

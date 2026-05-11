@@ -25,7 +25,7 @@ class SessionTracker implements vscode.DebugAdapterTracker {
             return;
         }
         const category: string = message.body?.category ?? 'stdout';
-        const isError = category === 'stderr' || category === 'important';
+        const isError = category === 'stderr';
         if (category === 'telemetry') {
             return;
         }

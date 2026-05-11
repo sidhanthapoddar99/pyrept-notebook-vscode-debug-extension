@@ -12,6 +12,7 @@ interface ActiveExecution {
     textBuffer: string;
     textIsError: boolean;
     pendingChunk: string;
+    outputChain: Promise<void>;
 }
 
 export class DebugNotebookController {
@@ -21,6 +22,7 @@ export class DebugNotebookController {
     private _executionOrder = 0;
     private readonly _helperSource: string;
     private readonly _helperInstalledSessions = new Set<string>();
+    private _runQueue: Promise<void> = Promise.resolve();
 
     constructor(context: vscode.ExtensionContext) {
         this._extensionPath = context.extensionPath;
@@ -66,7 +68,9 @@ export class DebugNotebookController {
         _controller: vscode.NotebookController
     ): Promise<void> {
         for (const cell of cells) {
-            await this._executeCell(cell);
+            const next = this._runQueue.then(() => this._executeCell(cell));
+            this._runQueue = next.catch(() => {}); // swallow rejections so the chain never deadlocks
+            await next;
         }
     }
 
@@ -170,6 +174,7 @@ export class DebugNotebookController {
             textBuffer: '',
             textIsError: false,
             pendingChunk: '',
+            outputChain: Promise.resolve(),
         };
         this._active = ctx;
 
@@ -217,11 +222,13 @@ export class DebugNotebookController {
                 this._appendText(ctx, response.result + '\n', false);
             }
 
+            await ctx.outputChain;
             execution.end(true, Date.now());
         } catch (err: any) {
             this._flushPending(ctx);
             const message = err?.message ?? String(err);
             await this._emitError(execution, err?.name ?? 'Error', message);
+            await ctx.outputChain;
             execution.end(false, Date.now());
         } finally {
             cancellation.dispose();
@@ -282,6 +289,14 @@ export class DebugNotebookController {
             this._appendText(ctx, tail, isError);
             ctx.pendingChunk = '';
         }
+        // Safety net: if interleaving stdout (logpoints, background threads)
+        // wedges between two halves of a sentinel, the regex never closes and
+        // pendingChunk grows forever. Cap at 16 MiB — past that, flush as text.
+        const MAX_PENDING = 16 * 1024 * 1024;
+        if (ctx.pendingChunk.length > MAX_PENDING) {
+            this._appendText(ctx, ctx.pendingChunk, isError);
+            ctx.pendingChunk = '';
+        }
     }
 
     private _flushPending(ctx: ActiveExecution): void {
@@ -306,23 +321,28 @@ export class DebugNotebookController {
             ctx.textOutput = new vscode.NotebookCellOutput([
                 vscode.NotebookCellOutputItem.text(ctx.textBuffer, mime),
             ]);
-            void ctx.cellExecution.appendOutput(ctx.textOutput);
+            const out = ctx.textOutput;
+            ctx.outputChain = ctx.outputChain.then(() => ctx.cellExecution.appendOutput(out)).catch(() => {});
             return;
         }
         ctx.textBuffer += text;
         const mime = isError
             ? 'application/vnd.code.notebook.stderr'
             : 'application/vnd.code.notebook.stdout';
-        void ctx.cellExecution.replaceOutputItems(
-            [vscode.NotebookCellOutputItem.text(ctx.textBuffer, mime)],
-            ctx.textOutput
-        );
+        const buf = ctx.textBuffer;
+        const out = ctx.textOutput;
+        ctx.outputChain = ctx.outputChain.then(() =>
+            ctx.cellExecution.replaceOutputItems(
+                [vscode.NotebookCellOutputItem.text(buf, mime)],
+                out
+            )
+        ).catch(() => {});
     }
 
     private _appendRich(ctx: ActiveExecution, mime: string, data: Buffer): void {
         const item = new vscode.NotebookCellOutputItem(new Uint8Array(data), mime);
         const output = new vscode.NotebookCellOutput([item]);
-        void ctx.cellExecution.appendOutput(output);
+        ctx.outputChain = ctx.outputChain.then(() => ctx.cellExecution.appendOutput(output)).catch(() => {});
         // Subsequent text becomes a new streaming block below the rich item.
         ctx.textOutput = undefined;
         ctx.textBuffer = '';

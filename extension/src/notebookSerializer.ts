@@ -20,6 +20,7 @@ interface SerializedCell {
 }
 
 interface NotebookFileFormat {
+    version?: number;
     cells: SerializedCell[];
 }
 
@@ -71,6 +72,11 @@ export class DebugNotebookSerializer implements vscode.NotebookSerializer {
             fileData = { cells: [] };
         }
 
+        if (fileData.version !== undefined && fileData.version !== 1) {
+            console.warn(`DebugNotebookSerializer: unsupported .dnb version ${fileData.version}; opening as empty.`);
+            return new vscode.NotebookData([]);
+        }
+
         const cells = (fileData.cells ?? []).map((cell: SerializedCell) => {
             const data = new vscode.NotebookCellData(
                 cell.kind ?? vscode.NotebookCellKind.Code,
@@ -94,6 +100,7 @@ export class DebugNotebookSerializer implements vscode.NotebookSerializer {
         _token: vscode.CancellationToken
     ): Promise<Uint8Array> {
         const fileData: NotebookFileFormat = {
+            version: 1,
             cells: data.cells.map((cell: vscode.NotebookCellData) => {
                 const serialized: SerializedCell = {
                     language: cell.languageId,

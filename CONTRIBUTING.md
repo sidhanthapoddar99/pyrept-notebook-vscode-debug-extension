@@ -114,6 +114,15 @@ You'll use **Run Extension (watch)** for nearly all real work — saves you
 the relaunch every time you tweak a `.ts` file. **Run Extension** is mostly
 there for one-shot sanity checks or CI-like clean builds.
 
+> **Important:** the dev host does **not** auto-reload after `tsc` rebuilds.
+> You must press `Ctrl+R` (`Cmd+R` on macOS) inside the dev-host window after
+> every TypeScript change for the new compiled JS to take effect. Otherwise
+> the dev host keeps running the previous build and you'll see "phantom"
+> bugs — e.g. a fix you just made appears to do nothing, or rich-output
+> sentinels (`<<<DNB:…:DNB>>>`) appear as raw text in the debug console
+> instead of being rendered in the cell. Reload first before debugging the
+> behavior.
+
 Inside the dev host (either config):
 
 1. Open `plot_demo.py`, set a breakpoint on the last line.
@@ -327,3 +336,31 @@ and install it from inside VS Code as a smoke test before announcing.
   re-create them as symlinks pointing at `../{README.md,CHANGELOG.md,LICENSE}`
   (`mklink` on cmd, `New-Item -ItemType SymbolicLink` in PowerShell, or
   `ln -s` in a Linux-ish shell).
+- **Cell executions are serialized.** The controller maintains a `_runQueue`
+  Promise chain so only one cell runs at a time across all "Run Cell" / "Run
+  All" invocations. This prevents output from one cell leaking into another
+  when the user starts a second cell before the first finishes. Side effect:
+  clicking Run on cell B while cell A is mid-execute queues B — it does not
+  run concurrently.
+- **Background-thread stdout attaches to whichever cell is currently
+  running.** DAP `output` events aren't tagged with the originating
+  `evaluate` request, so if the debuggee has worker threads calling
+  `print()`, that output lands in whatever cell is `_active` at the moment.
+  No fix on our side without DAP cooperation — document and move on.
+- **No `display()` mid-cell.** Only the trailing expression of a cell
+  auto-renders. `IPython.display.display(obj)` doesn't work because we don't
+  override `sys.displayhook` or call out to any display protocol
+  mid-execution. If users need to render multiple objects in one cell, they
+  should call `__dnb_render__(obj)` explicitly between statements — that
+  walks the same type-dispatch logic as the trailing-expression auto-render.
+- **Auto-closing pyplot figures can be disabled.** By default
+  `_dnb_flush_pyplot` closes all figures after each cell so the next cell
+  doesn't re-render them. If you want to build up a plot across cells (e.g.
+  create `fig, ax` in one cell, call `ax.plot(...)` in the next), drop
+  `__dnb_keep_figures(True)` into a cell to disable auto-close for the rest
+  of the debug session. `__dnb_keep_figures(False)` restores the default.
+- **Persisted `.dnb` files include a format version.** The serializer now
+  writes `{ "version": 1, "cells": [...] }`. Files with an unknown version
+  open as empty rather than corrupting their content; files without a
+  version are treated as version 1 for backwards compatibility with older
+  `.dnb` files.
