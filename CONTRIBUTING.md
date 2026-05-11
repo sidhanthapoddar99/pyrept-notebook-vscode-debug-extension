@@ -79,16 +79,37 @@ debugger**". Everything else falls out of that.
    trailing expression (Jupyter-style auto-render).
 5. `__dnb_render__` knows how to turn a `matplotlib.Figure`, `pandas.DataFrame`,
    `plotly.Figure`, `PIL.Image`, or anything with `_repr_html_` into the right
-   MIME type — emitted to stdout as a sentinel:
+   MIME type. During a cell run, rich emissions are **appended to an in-process
+   list**, not written to stdout. `__dnb_run__` writes the list to a tempfile
+   (e.g. `/tmp/dnb-XXXX.json`) and returns just the **path** as the DAP
+   evaluate response. The controller strips debugpy's repr-quoting, reads the
+   file, parses the JSON, emits each entry as a `NotebookCellOutputItem`, and
+   unlinks the file.
 
-   ```
-   <<<DNB:{mime}:{base64-bytes}:DNB>>>
-   ```
+   This transport (tempfile path, not inline payload) avoids two problems
+   with putting rich data in the evaluate result directly:
+   - **debugpy/pydevd silently truncates long result strings.** Inline
+     base64 of a few-KB DataFrame HTML would get cut off, decode would fail,
+     and the cell would show empty output (this was a real bug — caused
+     "first run shows nothing, second run works" symptoms).
+   - **Debug console noise.** Result strings of programmatic evaluates
+     don't surface to the console, but writing to stdout (the alternative)
+     does — and the binary payloads are ugly when they leak through.
 
-6. The DAP adapter tracker forwards every `output` event to the controller,
-   which buffers across event boundaries, extracts complete sentinels (handles
-   the case where one sentinel is split across multiple output events), and
-   emits proper `NotebookCellOutput` items with the right MIME type.
+   Plain `print()` output still flows through stdout — it's useful in both
+   the debug console and the cell, so we leave it alone.
+
+   Remote-debug caveat: the tempfile lives on the debuggee's filesystem.
+   For local debug, the controller can read it directly. For SSH/container
+   debugging where the controller and debuggee don't share `/tmp`, rich
+   output won't render (the readFile call fails silently). Text output
+   still works fine over DAP output events.
+
+6. As a safety net, the controller still parses any
+   `<<<DNB:{mime}:{base64}:DNB>>>` sentinels that appear in stdout (legacy
+   sessions, or manual `__dnb_render__(obj)` calls from the debug console
+   outside a cell). The DAP adapter tracker buffers across event boundaries
+   so a sentinel split across multiple events is still parsed correctly.
 7. Non-sentinel text is streamed to the cell using
    `application/vnd.code.notebook.stdout` / `.stderr` so VS Code styles it.
 8. `plt.show()` is monkey-patched once per session to flush figures inline
@@ -364,3 +385,16 @@ and install it from inside VS Code as a smoke test before announcing.
   open as empty rather than corrupting their content; files without a
   version are treated as version 1 for backwards compatibility with older
   `.dnb` files.
+- **Rich payloads travel via tempfile, not inline result.** When `__dnb_run__`
+  has emissions to deliver, it writes them to `/tmp/dnb-XXXX.json` and returns
+  just the path. The controller reads and unlinks. This was a real fix —
+  earlier versions returned inline base64 JSON, which debugpy/pydevd silently
+  truncates at internal repr-size caps. Symptom: cells like `df.head()` or
+  `plt.show()` showed empty output on the first run, then worked on
+  subsequent runs (the truncation was sensitive to evaluation state). If you
+  see that symptom recur, suspect a regression in this transport.
+- **Helper install warms up matplotlib + pandas.** `_dnb_warmup()` at the
+  bottom of `dnb_helpers.py` eagerly imports both libs and patches `plt.show`
+  during install. This pays the import cost in the install evaluate (which
+  is invisible to the user) rather than in their first cell evaluate (which
+  is visible and was apparently long enough on some envs to break the cell).

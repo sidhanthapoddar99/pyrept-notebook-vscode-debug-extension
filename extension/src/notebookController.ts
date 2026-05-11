@@ -215,10 +215,15 @@ export class DebugNotebookController {
             // Flush any remaining buffered partial-sentinel text before reading the response.
             this._flushPending(ctx);
 
-            // Only surface the evaluate `result` if helpers didn't run (so we didn't already
-            // render the trailing expression) AND there's a meaningful return value.
             const helpersRan = isPython && this._helperInstalledSessions.has(session.id);
-            if (!helpersRan && response?.result && response.result !== 'None' && response.result !== 'undefined') {
+            if (helpersRan) {
+                // Helpers return the path to a tempfile containing JSON emissions, or "" if
+                // there are none. Using a tempfile (not an inline result string) avoids
+                // debugpy/pydevd's silent truncation of long evaluate results, which caused
+                // empty cell output for anything with a non-trivial HTML/PNG payload.
+                await this._decodeAndEmitEmissions(ctx, response?.result);
+            } else if (response?.result && response.result !== 'None' && response.result !== 'undefined') {
+                // No helpers (non-Python session, install failed): just surface the result.
                 this._appendText(ctx, response.result + '\n', false);
             }
 
@@ -235,6 +240,44 @@ export class DebugNotebookController {
             if (this._active === ctx) {
                 this._active = undefined;
             }
+        }
+    }
+
+    private async _decodeAndEmitEmissions(ctx: ActiveExecution, rawResult: unknown): Promise<void> {
+        if (typeof rawResult !== 'string' || !rawResult) {
+            return;
+        }
+        // debugpy wraps string returns in Python-repr quotes — strip an outer matching pair.
+        let p = rawResult;
+        if (p.length >= 2) {
+            const f = p.charAt(0);
+            const l = p.charAt(p.length - 1);
+            if ((f === "'" || f === '"') && f === l) {
+                p = p.slice(1, -1);
+            }
+        }
+        if (!p) {
+            return;
+        }
+        let json: string;
+        try {
+            json = await fs.promises.readFile(p, 'utf8');
+        } catch {
+            return; // tempfile not present / remote debug filesystem mismatch / etc.
+        }
+        // Best-effort cleanup — don't block on it.
+        fs.promises.unlink(p).catch(() => {});
+        let payload: { emissions?: Array<{ mime: string; data: string }> };
+        try {
+            payload = JSON.parse(json);
+        } catch {
+            return;
+        }
+        for (const e of payload.emissions ?? []) {
+            if (!e?.mime || typeof e.data !== 'string') {
+                continue;
+            }
+            this._appendRich(ctx, e.mime, Buffer.from(e.data, 'base64'));
         }
     }
 
