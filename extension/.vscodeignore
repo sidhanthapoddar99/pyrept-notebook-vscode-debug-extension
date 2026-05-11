@@ -12,3 +12,4 @@ src/**/*.ts
 src/**/*.map
 **/tsconfig.json
 **/.eslintrc*
+assets/**

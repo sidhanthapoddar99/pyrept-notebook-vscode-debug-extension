@@ -141,13 +141,25 @@ def _dnb_render(obj):
     _sys.stdout.flush()
 
 
+# Snapshot of figures that existed before this cell started. Anything in this
+# set is the user's own pyplot state (e.g. figures created by their program
+# before the breakpoint) and must not be auto-emitted or closed by the flush.
+_dnb_pre_fignums = None  # type: set | None
+
+
 def _dnb_flush_pyplot():
     try:
         import matplotlib.pyplot as _plt
+        skip = _dnb_pre_fignums if _dnb_pre_fignums is not None else set()
         for num in _plt.get_fignums():
+            if num in skip:
+                continue
             _dnb_emit_figure(_plt.figure(num))
         if not getattr(_builtins, "__dnb_keep_figures__", False):
-            _plt.close("all")
+            for num in list(_plt.get_fignums()):
+                if num in skip:
+                    continue
+                _plt.close(num)
     except Exception:
         pass
 
@@ -178,9 +190,14 @@ def _dnb_run(code, _globals, _locals):
     string if there are no emissions (cells producing only text via
     print/repr).
     """
-    global _dnb_active_emissions
+    global _dnb_active_emissions, _dnb_pre_fignums
     _dnb_patch_pyplot()
     _dnb_active_emissions = []
+    try:
+        import matplotlib.pyplot as _plt
+        _dnb_pre_fignums = set(_plt.get_fignums())
+    except Exception:
+        _dnb_pre_fignums = set()
     try:
         tree = _ast.parse(code, mode="exec")
         last_expr = None
@@ -196,6 +213,7 @@ def _dnb_run(code, _globals, _locals):
         emissions = _dnb_active_emissions
     finally:
         _dnb_active_emissions = None
+        _dnb_pre_fignums = None
     if not emissions:
         return ""
     payload = _json.dumps({"emissions": emissions}).encode("utf-8")

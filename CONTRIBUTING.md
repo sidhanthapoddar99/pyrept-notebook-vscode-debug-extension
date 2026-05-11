@@ -374,10 +374,19 @@ and install it from inside VS Code as a smoke test before announcing.
   mid-execution. If users need to render multiple objects in one cell, they
   should call `__dnb_render__(obj)` explicitly between statements — that
   walks the same type-dispatch logic as the trailing-expression auto-render.
+- **Auto-flush only touches figures the cell created.** At the start of every
+  cell `_dnb_run` snapshots `plt.get_fignums()` into `_dnb_pre_fignums`. The
+  end-of-cell `_dnb_flush_pyplot` only emits/closes fignums **not** in that
+  snapshot. This is essential when the user breaks inside a function whose
+  caller already created figures (e.g. paused at `return` of a function that
+  built `fig, ax = plt.subplots()`): without the snapshot, every cell —
+  including `1+2` — would re-emit that pre-existing user figure. Explicit
+  rendering paths (`__dnb_render__(fig)`, trailing expression) bypass the
+  snapshot and always render whatever was asked for.
 - **Auto-closing pyplot figures can be disabled.** By default
-  `_dnb_flush_pyplot` closes all figures after each cell so the next cell
-  doesn't re-render them. If you want to build up a plot across cells (e.g.
-  create `fig, ax` in one cell, call `ax.plot(...)` in the next), drop
+  `_dnb_flush_pyplot` closes figures it just emitted (only new ones — see
+  above). If you want to build up a plot across cells (e.g. create `fig, ax`
+  in one cell, call `ax.plot(...)` in the next), drop
   `__dnb_keep_figures(True)` into a cell to disable auto-close for the rest
   of the debug session. `__dnb_keep_figures(False)` restores the default.
 - **Persisted `.dnb` files include a format version.** The serializer now
