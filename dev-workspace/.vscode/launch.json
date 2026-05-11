@@ -7,7 +7,12 @@
             "request": "launch",
             "program": "${workspaceFolder}/plot_demo.py",
             "console": "integratedTerminal",
-            "justMyCode": false
+            "justMyCode": false,
+
+            // Pin the interpreter explicitly so this config doesn't depend
+            // on whatever the Python extension happens to have selected.
+            // Windows note: swap `bin/python` for `Scripts/python.exe`.
+            "python": "${workspaceFolder}/../.venv/bin/python"
         }
     ]
 }

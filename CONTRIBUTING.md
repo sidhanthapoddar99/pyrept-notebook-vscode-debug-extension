@@ -101,25 +101,34 @@ helper for the target runtime.
 
 ## Running the extension locally (F5)
 
-`.vscode/launch.json` defines **Run Extension** which:
+`.vscode/launch.json` defines two configs. Both launch an Extension
+Development Host pointed at `extension/` with `dev-workspace/` opened as the
+workspace folder. The only difference is the pre-launch build:
 
-- runs the `compile` task (`bun run compile` inside `extension/`) first,
-- launches an Extension Development Host pointed at `extension/`, with
-  `dev-workspace/` as the open workspace.
+| Config                    | Pre-launch task                   | When to use                                                                                                       |
+| ------------------------- | --------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| **Run Extension**         | `compile` (`tsc -p ./`, one-shot) | Quick smoke test. After this builds, tsc exits — edits to `.ts` won't take effect until you stop and relaunch.    |
+| **Run Extension (watch)** | `watch` (`tsc -watch -p ./`)      | Iterating on the extension. tsc stays alive in the background and rebuilds on save. Hit `Ctrl+R` (`Cmd+R` on Mac) in the dev host to pick up the rebuild without restarting VS Code. |
 
-Inside the dev host:
+You'll use **Run Extension (watch)** for nearly all real work — saves you
+the relaunch every time you tweak a `.ts` file. **Run Extension** is mostly
+there for one-shot sanity checks or CI-like clean builds.
 
-1. `Ctrl+Shift+P` → "Python: Select Interpreter" → pick the project's
-   `.venv/bin/python`.
-2. Open `plot_demo.py`, set a breakpoint on the last line.
-3. F5 → "Python: plot_demo (pause for notebook)" (defined in
+Inside the dev host (either config):
+
+1. Open `plot_demo.py`, set a breakpoint on the last line.
+2. F5 → "Python: plot_demo (pause for notebook)" (defined in
    `dev-workspace/.vscode/launch.json`). The script pauses at the breakpoint.
-4. Open `plot_demo.dnb`. The Debug Notebook kernel is auto-selected.
-5. Shift+Enter through the cells.
+3. Open `plot_demo.dnb`. The Debug Notebook kernel is auto-selected.
+4. Shift+Enter through the cells.
 
-Use **Run Extension (watch)** if you want `tsc -watch` running in the
-background so edits hot-rebuild between cell runs (still need to reload the
-dev host with `Ctrl+R`).
+The Python interpreter is wired up automatically by
+`dev-workspace/.vscode/settings.json` (`python.defaultInterpreterPath` →
+`../.venv/bin/python`) and pinned in the debugpy config (`"python": "..."`
+in `dev-workspace/.vscode/launch.json`), so you don't need to run "Python:
+Select Interpreter" after a fresh clone. (On native Windows, replace
+`bin/python` with `Scripts/python.exe` in both files — or just clone via
+WSL.)
 
 ### Enabling breakpoints in `.dnb` cells (and other non-standard files)
 

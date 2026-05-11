@@ -4,5 +4,12 @@
     // Without this, breakpoints in non-standard file types are silently
     // disabled and the gutter dot turns hollow — confusing while testing
     // this extension.
-    "debug.allowBreakpointsEverywhere": true
+    "debug.allowBreakpointsEverywhere": true,
+
+    // Auto-select the project's uv-managed venv as the Python interpreter,
+    // so you don't have to run "Python: Select Interpreter" after every
+    // fresh clone. The path is relative to this workspace folder
+    // (dev-workspace/), so ../.venv resolves to the repo-root .venv.
+    // Windows note: swap `bin/python` for `Scripts/python.exe`.
+    "python.defaultInterpreterPath": "${workspaceFolder}/../.venv/bin/python"
 }
