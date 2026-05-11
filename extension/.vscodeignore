@@ -1,0 +1,15 @@
+.vscode/**
+.venv/**
+node_modules/**
+.git/**
+.gitignore
+.gitattributes
+.python-version
+mise.toml
+pyproject.toml
+out/**/*.map
+src/**/*.ts
+src/**/*.map
+**/tsconfig.json
+**/.eslintrc*
+assets/**

@@ -1,0 +1,18 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: plot_demo (pause for notebook)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/plot_demo.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+
+            // Pin the interpreter explicitly so this config doesn't depend
+            // on whatever the Python extension happens to have selected.
+            // Windows note: swap `bin/python` for `Scripts/python.exe`.
+            "python": "${workspaceFolder}/../.venv/bin/python"
+        }
+    ]
+}

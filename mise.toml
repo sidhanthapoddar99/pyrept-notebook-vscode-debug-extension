@@ -1,0 +1,37 @@
+[tools]
+bun = "latest"
+uv = "latest"
+
+[env]
+# Activate the uv-managed venv whenever you cd into the project.
+_.path = ["{{config_root}}/.venv/bin"]
+VIRTUAL_ENV = "{{config_root}}/.venv"
+
+[tasks.setup_js]
+dir = "{{config_root}}/extension"
+run = "bun install"
+
+[tasks.setup_py]
+run = [
+    "uv venv --python 3.14 .venv",
+    "uv sync --inexact",
+]
+
+[tasks.setup]
+description = "Install JS deps (bun, inside extension/) and create/sync the Python venv (uv)."
+depends = ["setup_js", "setup_py"]
+
+[tasks.compile]
+description = "Compile the extension."
+dir = "{{config_root}}/extension"
+run = "bun run compile"
+
+[tasks.watch]
+description = "Compile the extension in watch mode."
+dir = "{{config_root}}/extension"
+run = "bun run watch"
+
+[tasks.package]
+description = "Package the extension into a .vsix in dist/."
+dir = "{{config_root}}/extension"
+run = "bunx --bun vsce package --out ../dist/"

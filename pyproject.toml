@@ -1,0 +1,22 @@
+[project]
+name = "debug-notebook-helpers"
+version = "0.1.0"
+description = "In-process helpers injected into the debuggee by the Debug Notebook VS Code extension."
+requires-python = ">=3.14"
+dependencies = [
+    "numpy>=2.4.4",
+    "pandas>=3.0.2",
+    "seaborn>=0.13.2",
+]
+
+[dependency-groups]
+# Optional: install for local debugging of the helper module against real plotting libs.
+# `uv sync --group plot` to pull these in.
+plot = [
+    "matplotlib>=3.8",
+    "pandas>=2.0",
+    "plotly>=5.20",
+    "pillow>=10.0",
+    "numpy>=1.26",
+    "debugpy>=1.8",
+]

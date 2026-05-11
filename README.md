@@ -6,6 +6,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/sidhanthapoddar99/pyrept-notebook-vscode-debug-extension/blob/master/LICENSE)
 <!-- [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com) -->
 
+![Debug Notebook in action — inline plots, DataFrames, and live frame evaluation against a paused debug session](extension/assets/debug-notebook.gif)
+
 ## What is Debug Notebook?
 
 Debug Notebook brings the interactive power of notebooks to your debugging workflow. Instead of just using the debug console, you can now use a full notebook interface that connects automatically to any active debug session.
@@ -148,14 +150,15 @@ console.log('Processing successful!');
 
 ## Known Limitations
 
-- Text output only (no graphs or rich media)
+- JavaScript debug sessions get text-only output (rich rendering is Python-only)
+- DAP `evaluate` is not interruptible mid-cell — cancellation marks the cell as failed in the UI but the underlying call continues server-side
 - Requires active debug session
 - Limited to languages with debug adapter support
 
 ## Support
 
-- 📝 Report issues: [GitHub Issues](https://github.com/yourusername/debug-notebook/issues)
-- 💡 Feature requests: [GitHub Discussions](https://github.com/yourusername/debug-notebook/discussions)
+- 📝 Report issues: [GitHub Issues](https://github.com/sidhanthapoddar99/pyrept-notebook-vscode-debug-extension/issues)
+- 💡 Feature requests: [GitHub Discussions](https://github.com/sidhanthapoddar99/pyrept-notebook-vscode-debug-extension/discussions)
 - 📧 Contact: sidhanthapoddar99@gmail.com
 
 ## License

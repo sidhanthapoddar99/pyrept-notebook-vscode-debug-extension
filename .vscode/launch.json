@@ -1,17 +1,27 @@
 {
     "version": "0.2.0",
     "configurations": [
-      {
-        "name": "Run Extension",
-        "type": "extensionHost",
-        "request": "launch",
-        "args": [
-          "--extensionDevelopmentPath=${workspaceFolder}"
-        ],
-        "outFiles": [
-          "${workspaceFolder}/out/**/*.js"
-        ],
-        "preLaunchTask": "npm: watch"
-      }
+        {
+            "name": "Run Extension",
+            "type": "extensionHost",
+            "request": "launch",
+            "args": [
+                "--extensionDevelopmentPath=${workspaceFolder}/extension",
+                "${workspaceFolder}/dev-workspace"
+            ],
+            "outFiles": ["${workspaceFolder}/extension/out/**/*.js"],
+            "preLaunchTask": "compile"
+        },
+        {
+            "name": "Run Extension (watch)",
+            "type": "extensionHost",
+            "request": "launch",
+            "args": [
+                "--extensionDevelopmentPath=${workspaceFolder}/extension",
+                "${workspaceFolder}/dev-workspace"
+            ],
+            "outFiles": ["${workspaceFolder}/extension/out/**/*.js"],
+            "preLaunchTask": "watch"
+        }
     ]
-  }
+}
