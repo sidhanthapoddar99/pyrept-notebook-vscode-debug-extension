@@ -1,0 +1,24 @@
+[tools]
+bun = "latest"
+uv = "latest"
+
+[env]
+# Activate the uv-managed venv whenever you cd into the project.
+_.path = ["{{config_root}}/.venv/bin"]
+VIRTUAL_ENV = "{{config_root}}/.venv"
+
+[tasks.setup]
+description = "Install JS deps (bun) and create/sync the Python venv (uv)."
+run = [
+    "bun install",
+    "uv venv --python 3.14 .venv",
+    "uv sync --inexact",
+]
+
+[tasks.compile]
+description = "Build the extension."
+run = "bun run compile"
+
+[tasks.package]
+description = "Package the extension into a .vsix."
+run = "bun run package"

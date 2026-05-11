@@ -5,45 +5,39 @@ import { DebugNotebookController } from './notebookController';
 import { DebugOutputTracker } from './debugTracker';
 
 export function activate(context: vscode.ExtensionContext) {
-    console.log('Debug Notebook extension is now active!');
-
-    // Register notebook serializer
     const serializer = new DebugNotebookSerializer();
     context.subscriptions.push(
         vscode.workspace.registerNotebookSerializer('debug-notebook', serializer, {
-            transientOutputs: true
+            transientOutputs: false,
+            transientCellMetadata: { executionOrder: true },
         })
     );
 
-    // Create and register notebook controller
     const controller = new DebugNotebookController(context);
-    
-    // Register debug adapter tracker for Python and Node
     const tracker = new DebugOutputTracker(controller);
-    context.subscriptions.push(
-        vscode.debug.registerDebugAdapterTrackerFactory('python', tracker),
-        vscode.debug.registerDebugAdapterTrackerFactory('node', tracker),
-        vscode.debug.registerDebugAdapterTrackerFactory('pwa-node', tracker),
-        vscode.debug.registerDebugAdapterTrackerFactory('*', tracker)  // Fallback
-    );
 
-    // Register commands
+    // Single wildcard registration. The previous code registered python/node/pwa-node/*
+    // separately, and DAP fires every matching factory — each output was captured twice.
+    context.subscriptions.push(vscode.debug.registerDebugAdapterTrackerFactory('*', tracker));
+
     context.subscriptions.push(
         vscode.commands.registerCommand('debugNotebook.newNotebook', async () => {
-            const defaultLanguage = vscode.workspace.getConfiguration('debugNotebook').get('defaultLanguage', 'python');
+            const defaultLanguage = vscode.workspace
+                .getConfiguration('debugNotebook')
+                .get<string>('defaultLanguage', 'python');
             const notebookData = new vscode.NotebookData([
-                new vscode.NotebookCellData(vscode.NotebookCellKind.Code, `# Welcome to Debug Notebook\n# Run cells to execute code in the debug console`, defaultLanguage)
+                new vscode.NotebookCellData(
+                    vscode.NotebookCellKind.Code,
+                    '# Welcome to Debug Notebook.\n# Start a debug session, pause, then run cells against the live frame.\n',
+                    defaultLanguage
+                ),
             ]);
-            
             const document = await vscode.workspace.openNotebookDocument('debug-notebook', notebookData);
             await vscode.window.showNotebookDocument(document);
         })
     );
-
-    // Note: No need for runCell command anymore as Shift+Enter works by default
-    // Note: No need for openWithActiveSession anymore as it connects automatically
 }
 
-export function deactivate() {
-    // Cleanup if needed
+export function deactivate(): void {
+    // nothing to do; subscriptions handle teardown
 }

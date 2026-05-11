@@ -1,0 +1,8 @@
+{
+    // Lets you set a breakpoint inside any file type (including `.dnb`
+    // notebook cells), not just files registered with a debug adapter source.
+    // Without this, breakpoints in non-standard file types are silently
+    // disabled and the gutter dot turns hollow — confusing while testing
+    // this extension.
+    "debug.allowBreakpointsEverywhere": true
+}

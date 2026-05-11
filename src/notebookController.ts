@@ -1,28 +1,63 @@
 // src/notebookController.ts
 import * as vscode from 'vscode';
+import * as fs from 'fs';
+import * as path from 'path';
+
+const PYTHON_SESSION_TYPES = new Set(['python', 'debugpy', 'python-debug']);
+
+interface ActiveExecution {
+    cellExecution: vscode.NotebookCellExecution;
+    sessionId: string;
+    textOutput?: vscode.NotebookCellOutput;
+    textBuffer: string;
+    textIsError: boolean;
+    pendingChunk: string;
+}
 
 export class DebugNotebookController {
-    private _controller: vscode.NotebookController;
-    private _currentExecution: vscode.NotebookCellExecution | undefined;
-    private _context: vscode.ExtensionContext;
-    private _outputBuffer: string = '';
-    private _errorBuffer: string = '';
-    private _outputResolve?: () => void;
+    private readonly _controller: vscode.NotebookController;
+    private readonly _extensionPath: string;
+    private _active: ActiveExecution | undefined;
+    private _executionOrder = 0;
+    private readonly _helperSource: string;
+    private readonly _helperInstalledSessions = new Set<string>();
 
     constructor(context: vscode.ExtensionContext) {
-        this._context = context;
+        this._extensionPath = context.extensionPath;
+        this._helperSource = this._loadHelperSource();
+
         this._controller = vscode.notebooks.createNotebookController(
             'debug-notebook-controller',
             'debug-notebook',
             'Debug Console Kernel'
         );
-
         this._controller.supportedLanguages = ['python', 'javascript'];
         this._controller.supportsExecutionOrder = true;
-        this._controller.description = 'Execute code in debug console';
+        this._controller.description = 'Executes cells in the active debug session';
         this._controller.executeHandler = this._executeHandler.bind(this);
 
         context.subscriptions.push(this._controller);
+        context.subscriptions.push(
+            vscode.debug.onDidTerminateDebugSession((session: vscode.DebugSession) => {
+                this._helperInstalledSessions.delete(session.id);
+            })
+        );
+    }
+
+    private _loadHelperSource(): string {
+        const candidates = [
+            path.join(this._extensionPath, 'src', 'dnb_helpers.py'),
+            path.join(this._extensionPath, 'dnb_helpers.py'),
+            path.join(this._extensionPath, 'out', 'dnb_helpers.py'),
+        ];
+        for (const p of candidates) {
+            try {
+                return fs.readFileSync(p, 'utf8');
+            } catch {
+                // try next
+            }
+        }
+        return '';
     }
 
     private async _executeHandler(
@@ -31,277 +66,265 @@ export class DebugNotebookController {
         _controller: vscode.NotebookController
     ): Promise<void> {
         for (const cell of cells) {
-            await this.executeCell(cell);
+            await this._executeCell(cell);
         }
     }
 
-    private isDebugStackFrame(item: any): item is vscode.DebugStackFrame {
+    private _isDebugStackFrame(item: any): item is vscode.DebugStackFrame {
         return item && 'frameId' in item && 'threadId' in item;
     }
 
-    private isDebugThread(item: any): item is vscode.DebugThread {
+    private _isDebugThread(item: any): item is vscode.DebugThread {
         return item && 'threadId' in item && 'name' in item && !('frameId' in item);
     }
 
-    private async _getCurrentThreadAndFrame(session: vscode.DebugSession): Promise<{ threadId?: number, frameId?: number }> {
+    private async _resolveFrame(session: vscode.DebugSession): Promise<{ threadId?: number; frameId?: number }> {
         try {
-            // First check if there's an active stack item (thread or stack frame)
-            const activeStackItem = vscode.debug.activeStackItem;
-            console.log('Active stack item:', activeStackItem);
-
+            const active = vscode.debug.activeStackItem;
             let threadId: number | undefined;
             let frameId: number | undefined;
 
-            if (activeStackItem) {
-                if (this.isDebugStackFrame(activeStackItem)) {
-                    // It's a DebugStackFrame
-                    threadId = activeStackItem.threadId;
-                    frameId = activeStackItem.frameId;
-                    console.log(`Using active stack frame: thread ${threadId}, frame ${frameId}`);
-                } else if (this.isDebugThread(activeStackItem)) {
-                    // It's a DebugThread
-                    threadId = activeStackItem.threadId;
-                    console.log(`Using active thread: ${threadId}`);
+            if (active) {
+                if (this._isDebugStackFrame(active)) {
+                    threadId = active.threadId;
+                    frameId = active.frameId;
+                } else if (this._isDebugThread(active)) {
+                    threadId = active.threadId;
                 }
             }
 
-            // If we have a thread but no frame, get the top frame
             if (threadId && !frameId) {
-                const stackTraceResponse = await session.customRequest('stackTrace', {
-                    threadId: threadId,
-                    startFrame: 0,
-                    levels: 1
-                });
-                
-                if (stackTraceResponse && stackTraceResponse.stackFrames && stackTraceResponse.stackFrames.length > 0) {
-                    frameId = stackTraceResponse.stackFrames[0].id;
-                    console.log(`Got top frame for thread ${threadId}: frame ${frameId}`);
-                }
+                const stack = await session.customRequest('stackTrace', { threadId, startFrame: 0, levels: 1 });
+                frameId = stack?.stackFrames?.[0]?.id;
             }
 
-            // Fallback: If no active stack item, use the first thread (traditional behavior)
             if (!threadId) {
-                const threadsResponse = await session.customRequest('threads', {});
-                console.log('Threads response:', threadsResponse);
-                
-                if (threadsResponse && threadsResponse.threads && threadsResponse.threads.length > 0) {
-                    threadId = threadsResponse.threads[0].id;
-                    console.log(`Falling back to first thread: ${threadId}`);
-                    
-                    // Get the top frame for this thread
-                    const stackTraceResponse = await session.customRequest('stackTrace', {
-                        threadId: threadId,
-                        startFrame: 0,
-                        levels: 1
-                    });
-                    
-                    if (stackTraceResponse && stackTraceResponse.stackFrames && stackTraceResponse.stackFrames.length > 0) {
-                        frameId = stackTraceResponse.stackFrames[0].id;
-                        console.log(`Got top frame for fallback thread: frame ${frameId}`);
-                    }
+                const threads = await session.customRequest('threads', {});
+                threadId = threads?.threads?.[0]?.id;
+                if (threadId) {
+                    const stack = await session.customRequest('stackTrace', { threadId, startFrame: 0, levels: 1 });
+                    frameId = stack?.stackFrames?.[0]?.id;
                 }
             }
 
             return { threadId, frameId };
-        } catch (e) {
-            console.log('Error getting thread/frame:', e);
+        } catch {
             return {};
         }
     }
 
-    async executeCell(cell: vscode.NotebookCell): Promise<void> {
+    private _isPythonSession(session: vscode.DebugSession): boolean {
+        return PYTHON_SESSION_TYPES.has(session.type);
+    }
+
+    private async _ensureHelpers(session: vscode.DebugSession, frameId: number | undefined): Promise<void> {
+        if (!this._isPythonSession(session)) {
+            return;
+        }
+        if (this._helperInstalledSessions.has(session.id)) {
+            return;
+        }
+        if (!this._helperSource) {
+            return;
+        }
+        const b64 = Buffer.from(this._helperSource, 'utf8').toString('base64');
+        // Install into builtins so __dnb_run__ is reachable from every frame.
+        const installer =
+            `exec(__import__('base64').b64decode('${b64}').decode('utf-8'), __import__('builtins').__dict__)`;
+        const req: any = { expression: installer, context: 'repl' };
+        if (frameId !== undefined) {
+            req.frameId = frameId;
+        }
+        try {
+            await session.customRequest('evaluate', req);
+            this._helperInstalledSessions.add(session.id);
+        } catch {
+            // Best-effort: even without helpers the cell still runs as a plain evaluate.
+        }
+    }
+
+    private _wrapPythonCell(code: string): string {
+        const b64 = Buffer.from(code, 'utf8').toString('base64');
+        return `__dnb_run__(__import__('base64').b64decode('${b64}').decode('utf-8'), globals(), locals())`;
+    }
+
+    private async _executeCell(cell: vscode.NotebookCell): Promise<void> {
         const execution = this._controller.createNotebookCellExecution(cell);
-        this._currentExecution = execution;
+        this._executionOrder += 1;
+        execution.executionOrder = this._executionOrder;
         execution.start(Date.now());
         execution.clearOutput();
-        
-        // Reset output buffers
-        this._outputBuffer = '';
-        this._errorBuffer = '';
+
+        const session = vscode.debug.activeDebugSession;
+        if (!session) {
+            await this._emitError(execution, 'NoDebugSession', 'No active debug session. Start debugging (F5) first.');
+            execution.end(false, Date.now());
+            return;
+        }
+
+        const { frameId } = await this._resolveFrame(session);
+
+        const ctx: ActiveExecution = {
+            cellExecution: execution,
+            sessionId: session.id,
+            textBuffer: '',
+            textIsError: false,
+            pendingChunk: '',
+        };
+        this._active = ctx;
+
+        const cancellation = execution.token.onCancellationRequested(() => {
+            // DAP evaluate is not generally interruptible mid-flight; we end the cell
+            // and stop forwarding output. The underlying evaluate may continue server-side
+            // until it naturally completes, but the UI reflects cancellation immediately.
+            if (this._active === ctx) {
+                this._active = undefined;
+            }
+            execution.end(false, Date.now());
+        });
 
         try {
-            // First try to use the active debug session
-            let session = vscode.debug.activeDebugSession;
-            
-            if (!session) {
-                throw new Error('No active debug session. Please start debugging first.');
+            const language = cell.document.languageId;
+            const rawCode = cell.document.getText();
+            const isPython = language === 'python' && this._isPythonSession(session);
+
+            if (isPython) {
+                await this._ensureHelpers(session, frameId);
             }
 
-            // Log session information for debugging
-            console.log(`Using debug session: ${session.name} (${session.type})`);
-            
-            const code = this._prepareCode(cell.document.getText(), cell.document.languageId);
-            
-            // Get current thread and frame context
-            const { threadId, frameId } = await this._getCurrentThreadAndFrame(session);
-            
-            if (threadId) {
-                console.log(`Executing in thread ${threadId}, frame ${frameId || 'global'}`);
-            } else {
-                console.log('No specific thread context available, using global context');
-            }
-            
-            // Create a promise to wait for output to complete
-            let outputResolve: () => void;
-            let outputReject: (reason?: any) => void;
-            const outputPromise = new Promise<void>((resolve, reject) => {
-                outputResolve = resolve;
-                outputReject = reject;
-            });
-            
-            // Check if this is a print statement or expression
-            const isPrintStatement = code.trim().includes('print(');
-            const isExpression = !isPrintStatement && !code.trim().includes('=');
-            
-            // Longer timeout for print statements
-            const timeoutDuration = isPrintStatement ? 500 : (isExpression ? 50 : 200);
-            
-            // Store that we're expecting output from a print
-            let expectingPrintOutput = isPrintStatement;
-            
-            // Set up a timeout to resolve the promise after a short delay
-            const outputTimeout = setTimeout(() => {
-                console.log('Output timeout reached, resolving...');
-                outputResolve();
-            }, timeoutDuration);
-            
-            // Store the resolve function to be called when output is captured
-            this._outputResolve = () => {
-                console.log('Output resolved by tracker');
-                clearTimeout(outputTimeout);
-                outputResolve();
-            };
-            
-            // Execute the code with thread context
-            console.log(`Evaluating code: ${code}`);
-            const evaluateRequest: any = {
-                expression: code,
-                context: 'repl'
-            };
-            
-            // Only add frameId if we have one, otherwise use global context
-            if (frameId) {
-                evaluateRequest.frameId = frameId;
-            }
-            
-            const response = await session.customRequest('evaluate', evaluateRequest);
-            console.log('Evaluate response:', response);
+            const expression = isPython && this._helperInstalledSessions.has(session.id)
+                ? this._wrapPythonCell(rawCode)
+                : rawCode;
 
-            // For print statements, always wait for output
-            if (expectingPrintOutput) {
-                await outputPromise;
-            } else if (response && response.result && response.result !== 'None') {
-                // For expressions with non-None results, we might not need to wait
-                clearTimeout(outputTimeout);
-            } else {
-                // For other cases, wait for output
-                await outputPromise;
+            const req: any = { expression, context: 'repl' };
+            if (frameId !== undefined) {
+                req.frameId = frameId;
             }
 
-            // Handle result - only add if it's not None and not already in output
-            if (response && response.result && response.result !== 'None') {
-                const hasOutput = this._outputBuffer.length > 0;
-                
-                // Only add evaluate result if there's no output and it's not a print statement
-                if (!hasOutput && !isPrintStatement) {
-                    // Add newline after result for consistency
-                    this._outputBuffer = response.result + '\n';
-                }
+            const response = await session.customRequest('evaluate', req);
+
+            if (execution.token.isCancellationRequested) {
+                return;
             }
-            
-            // Add a small delay to ensure all output is captured
-            if (expectingPrintOutput && this._outputBuffer === '') {
-                await new Promise(resolve => setTimeout(resolve, 100));
+
+            // Flush any remaining buffered partial-sentinel text before reading the response.
+            this._flushPending(ctx);
+
+            // Only surface the evaluate `result` if helpers didn't run (so we didn't already
+            // render the trailing expression) AND there's a meaningful return value.
+            const helpersRan = isPython && this._helperInstalledSessions.has(session.id);
+            if (!helpersRan && response?.result && response.result !== 'None' && response.result !== 'undefined') {
+                this._appendText(ctx, response.result + '\n', false);
             }
-            
-            // Update final output
-            this._updateCellOutput(execution);
 
             execution.end(true, Date.now());
-        } catch (error: any) {
-            console.error('Error executing cell:', error);
-            const errorMessage = error?.message || String(error);
-            
-            // Add error to error buffer
-            this._errorBuffer += errorMessage;
-            
-            // Show final output including any stdout and the error
-            this._updateCellOutput(execution);
+        } catch (err: any) {
+            this._flushPending(ctx);
+            const message = err?.message ?? String(err);
+            await this._emitError(execution, err?.name ?? 'Error', message);
             execution.end(false, Date.now());
         } finally {
-            // Keep the execution active slightly longer for late-arriving output
-            await new Promise(resolve => setTimeout(resolve, 50));
-            
-            // Now clean up
-            this._currentExecution = undefined;
-            this._outputBuffer = '';
-            this._errorBuffer = '';
-            this._outputResolve = undefined;
-        }
-    }
-
-    private _prepareCode(code: string, language: string): string {
-        const lines = code.split('\n').filter(line => line.trim().length > 0);
-        
-        if (language === 'python' && lines.length > 1) {
-            // For multi-line Python code, use exec()
-            // Ensure proper escaping of special characters
-            const escapedCode = code
-                .replace(/\\/g, '\\\\')
-                .replace(/"/g, '\\"')
-                .replace(/\n/g, '\\n')
-                .replace(/\r/g, '\\r')
-                .replace(/\t/g, '\\t');
-            return `exec("${escapedCode}")`;
-        }
-        
-        // For single-line Python or JavaScript, return as-is
-        return code;
-    }
-
-    private _updateCellOutput(execution: vscode.NotebookCellExecution) {
-        const outputs: vscode.NotebookCellOutputItem[] = [];
-        
-        if (this._outputBuffer) {
-            // Don't strip newlines - preserve them for proper formatting
-            outputs.push(vscode.NotebookCellOutputItem.text(this._outputBuffer, 'text/plain'));
-        }
-        
-        if (this._errorBuffer) {
-            outputs.push(vscode.NotebookCellOutputItem.error({ 
-                name: 'Error', 
-                message: this._errorBuffer 
-            }));
-        }
-        
-        if (outputs.length > 0) {
-            const output = new vscode.NotebookCellOutput(outputs);
-            execution.replaceOutput(output);
-        }
-    }
-
-    getCurrentExecution(): vscode.NotebookCellExecution | undefined {
-        return this._currentExecution;
-    }
-
-    appendOutput(text: string, isError: boolean = false) {
-        if (this._currentExecution) {
-            console.log(`Appending output: ${JSON.stringify(text)} (error: ${isError})`);
-            
-            if (isError) {
-                this._errorBuffer += text;
-            } else {
-                this._outputBuffer += text;
-            }
-            
-            // Update the output with the accumulated text
-            this._updateCellOutput(this._currentExecution);
-            
-            // Resolve the output promise immediately when we get output
-            if (this._outputResolve) {
-                this._outputResolve();
-                this._outputResolve = undefined;
+            cancellation.dispose();
+            if (this._active === ctx) {
+                this._active = undefined;
             }
         }
+    }
+
+    private async _emitError(
+        execution: vscode.NotebookCellExecution,
+        name: string,
+        message: string
+    ): Promise<void> {
+        const output = new vscode.NotebookCellOutput([
+            vscode.NotebookCellOutputItem.error({ name, message } as Error),
+        ]);
+        await execution.appendOutput(output);
+    }
+
+    /**
+     * Receive a chunk of stdout/stderr from the debug-adapter tracker.
+     * Buffers across chunks so a sentinel split across two output events
+     * is still parsed correctly.
+     */
+    public onSessionOutput(sessionId: string, text: string, isError: boolean): void {
+        const ctx = this._active;
+        if (!ctx || ctx.sessionId !== sessionId) {
+            return;
+        }
+        ctx.pendingChunk += text;
+        this._consumeChunk(ctx, isError);
+    }
+
+    private _consumeChunk(ctx: ActiveExecution, isError: boolean): void {
+        // Pattern: <<<DNB:{mime}:{base64}:DNB>>>
+        // mime can contain "/" and "+", base64 uses A-Za-z0-9+/=
+        const re = /<<<DNB:([^:<>]+):([A-Za-z0-9+/=]+):DNB>>>/g;
+        let cursor = 0;
+        let match: RegExpExecArray | null;
+        while ((match = re.exec(ctx.pendingChunk)) !== null) {
+            if (match.index > cursor) {
+                this._appendText(ctx, ctx.pendingChunk.slice(cursor, match.index), isError);
+            }
+            const mime = match[1];
+            const b64 = match[2];
+            this._appendRich(ctx, mime, Buffer.from(b64, 'base64'));
+            cursor = re.lastIndex;
+        }
+        const tail = ctx.pendingChunk.slice(cursor);
+        const partial = tail.indexOf('<<<DNB:');
+        if (partial >= 0) {
+            if (partial > 0) {
+                this._appendText(ctx, tail.slice(0, partial), isError);
+            }
+            ctx.pendingChunk = tail.slice(partial);
+        } else {
+            this._appendText(ctx, tail, isError);
+            ctx.pendingChunk = '';
+        }
+    }
+
+    private _flushPending(ctx: ActiveExecution): void {
+        if (ctx.pendingChunk) {
+            this._appendText(ctx, ctx.pendingChunk, ctx.textIsError);
+            ctx.pendingChunk = '';
+        }
+    }
+
+    private _appendText(ctx: ActiveExecution, text: string, isError: boolean): void {
+        if (!text) {
+            return;
+        }
+        // Start a new output if we don't have a streaming text block, or the stream switched
+        // between stdout and stderr, or a rich output split the text stream.
+        if (!ctx.textOutput || ctx.textIsError !== isError) {
+            const mime = isError
+                ? 'application/vnd.code.notebook.stderr'
+                : 'application/vnd.code.notebook.stdout';
+            ctx.textBuffer = text;
+            ctx.textIsError = isError;
+            ctx.textOutput = new vscode.NotebookCellOutput([
+                vscode.NotebookCellOutputItem.text(ctx.textBuffer, mime),
+            ]);
+            void ctx.cellExecution.appendOutput(ctx.textOutput);
+            return;
+        }
+        ctx.textBuffer += text;
+        const mime = isError
+            ? 'application/vnd.code.notebook.stderr'
+            : 'application/vnd.code.notebook.stdout';
+        void ctx.cellExecution.replaceOutputItems(
+            [vscode.NotebookCellOutputItem.text(ctx.textBuffer, mime)],
+            ctx.textOutput
+        );
+    }
+
+    private _appendRich(ctx: ActiveExecution, mime: string, data: Buffer): void {
+        const item = new vscode.NotebookCellOutputItem(new Uint8Array(data), mime);
+        const output = new vscode.NotebookCellOutput([item]);
+        void ctx.cellExecution.appendOutput(output);
+        // Subsequent text becomes a new streaming block below the rich item.
+        ctx.textOutput = undefined;
+        ctx.textBuffer = '';
     }
 }

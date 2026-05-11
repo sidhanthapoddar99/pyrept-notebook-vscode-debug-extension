@@ -1,0 +1,39 @@
+{
+  "cells": [
+    {
+      "language": "python",
+      "value": "# Inspect plain values — trailing expression auto-renders.\ndf.head()",
+      "kind": 2
+    },
+    {
+      "language": "python",
+      "value": "# A matplotlib Figure returned by the cell renders as an inline PNG.\nfig",
+      "kind": 2
+    },
+    {
+      "language": "python",
+      "value": "# Statements work too. Modify state, then look at it.\ndf['sin_squared'] = df['sin'] ** 2\ndf.describe()",
+      "kind": 2
+    },
+    {
+      "language": "python",
+      "value": "# plt.show() in a cell flushes pending figures inline (no popup window).\nimport matplotlib.pyplot as plt\nplt.figure()\nplt.hist(df['sin'], bins=30)\nplt.title('sin distribution')\nplt.show()",
+      "kind": 2
+    },
+    {
+      "language": "python",
+      "value": "# Plain text + the trailing expression value.\nprint('len:', len(x))\nx.mean()",
+      "kind": 2
+    },
+    {
+      "language": "python",
+      "value": "# Multi-line code with no trailing expression — should produce no output.\na = 1\nb = 2\nc = a + b",
+      "kind": 2
+    },
+    {
+      "language": "python",
+      "value": "c",
+      "kind": 2
+    }
+  ]
+}

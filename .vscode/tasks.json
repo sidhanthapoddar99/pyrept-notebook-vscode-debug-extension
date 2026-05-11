@@ -1,18 +1,21 @@
 {
     "version": "2.0.0",
     "tasks": [
-      {
-        "type": "npm",
-        "script": "watch",
-        "problemMatcher": "$tsc-watch",
-        "isBackground": true,
-        "presentation": {
-          "reveal": "never"
+        {
+            "label": "watch",
+            "type": "shell",
+            "command": "bun run watch",
+            "problemMatcher": "$tsc-watch",
+            "isBackground": true,
+            "presentation": { "reveal": "never" },
+            "group": { "kind": "build", "isDefault": true }
         },
-        "group": {
-          "kind": "build",
-          "isDefault": true
+        {
+            "label": "compile",
+            "type": "shell",
+            "command": "bun run compile",
+            "problemMatcher": "$tsc",
+            "group": "build"
         }
-      }
     ]
-  }
+}
