@@ -5,6 +5,7 @@
             "label": "watch",
             "type": "shell",
             "command": "bun run watch",
+            "options": { "cwd": "${workspaceFolder}/extension" },
             "problemMatcher": "$tsc-watch",
             "isBackground": true,
             "presentation": { "reveal": "never" },
@@ -14,6 +15,7 @@
             "label": "compile",
             "type": "shell",
             "command": "bun run compile",
+            "options": { "cwd": "${workspaceFolder}/extension" },
             "problemMatcher": "$tsc",
             "group": "build"
         }

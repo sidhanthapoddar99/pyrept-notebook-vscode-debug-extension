@@ -1,52 +1,62 @@
 # Debug Notebook — Developer Guide
 
-This document is the contributor-facing guide. End-user usage lives in `README.md`.
+Contributor-facing guide. End-user usage and the marketplace listing live in
+`README.md` (at the repo root; the extension sub-package symlinks it).
 
 ## Toolchain
 
-The repo is wired up with [mise](https://mise.jdx.dev) for tool versioning. Two
-managed tools: **bun** (JS deps + script runner) and **uv** (Python + venv).
+Tool versioning is managed by [mise](https://mise.jdx.dev). Two managed tools:
+**bun** (JS deps + script runner for `extension/`) and **uv** (Python venv).
 
 ```bash
 mise install            # installs the bun and uv versions from mise.toml
-mise run setup          # bun install + uv venv .venv + uv sync
+mise run setup          # bun install (in extension/) + uv venv .venv + uv sync
 ```
 
-`mise.toml` also exposes:
+`mise.toml` tasks:
 
-| Task              | What it does                                     |
-| ----------------- | ------------------------------------------------ |
+| Task               | What it does                                     |
+| ------------------ | ------------------------------------------------ |
 | `mise run setup`   | Install JS deps and create/sync the Python venv. |
-| `mise run compile` | `bun run compile` → `tsc -p ./`.                 |
-| `mise run package` | `bun run package` → produces a `.vsix`.          |
+| `mise run compile` | `bun run compile` → `tsc -p ./` inside `extension/`. |
+| `mise run watch`   | `tsc -watch -p ./` inside `extension/`.          |
+| `mise run package` | `vsce package --out ../dist/` from `extension/`. |
 
-The Python venv lives in `.venv/` and is automatically activated by mise when
-you `cd` into the project. Required Python is **3.14+** (`.python-version`).
-
-The optional `plot` dependency group (`uv sync --group plot`) installs
-matplotlib / pandas / plotly / Pillow / numpy / debugpy so the local fixture in
-`testing/plot_demo.py` actually has libraries to plot with.
+The Python venv lives in `.venv/` (repo root) and is auto-activated by mise.
+Required Python is **3.14+** (`.python-version`). The optional `plot`
+dependency group (`uv sync --group plot`) installs matplotlib / pandas /
+plotly / Pillow / numpy / debugpy so `dev-workspace/plot_demo.py` actually has
+libraries to plot with.
 
 ## Project layout
 
 ```
-src/
-  extension.ts          # activation: registers serializer, controller, '*' DAP tracker
-  notebookController.ts # cell execution + helper injection + sentinel parsing
-  notebookSerializer.ts # .dnb (de)serialization, persists outputs
-  debugTracker.ts       # forwards DAP `output` events to the controller
-  dnb_helpers.py        # in-process Python helper module, base64-injected per session
-out/                    # tsc output, packaged into the .vsix
-testing/                # local fixtures (excluded from .vsix via .vscodeignore)
-  plot_demo.py          # script with a Figure/DataFrame breakpoint state
-  plot_demo.dnb         # demo notebook exercising rich-output paths
-  .vscode/launch.json   # debugpy config used inside the dev host
-.vscode/
-  launch.json           # "Run Extension" config (F5 in this repo)
-  tasks.json            # bun-based compile/watch tasks
-mise.toml               # tool versions + run tasks
-pyproject.toml          # Python deps (helpers + optional `plot` group)
-.vscodeignore           # files excluded from the published .vsix
+.
+├── extension/                  ← the npm package shipped as the .vsix
+│   ├── src/
+│   │   ├── extension.ts        # activation: serializer, controller, '*' DAP tracker
+│   │   ├── notebookController.ts # cell execution + helper injection + sentinel parsing
+│   │   ├── notebookSerializer.ts # .dnb (de)serialization, persists outputs
+│   │   ├── debugTracker.ts     # forwards DAP `output` events to the controller
+│   │   └── dnb_helpers.py      # in-process Python helper, base64-injected per session
+│   ├── icons/
+│   ├── out/                    # tsc output, gitignored, packaged into .vsix
+│   ├── package.json, tsconfig.json, bun.lock
+│   ├── .vscodeignore           # files excluded from the .vsix
+│   └── README.md, CHANGELOG.md, LICENSE   ← symlinks to repo root
+├── dev-workspace/              ← dev-host workspace + manual test fixtures
+│   ├── .vscode/{launch,settings}.json
+│   ├── plot_demo.py            # script with a Figure/DataFrame breakpoint state
+│   └── plot_demo.dnb           # demo notebook exercising rich-output paths
+├── dist/                       ← vsce package output (.vsix files), gitignored
+├── .vscode/                    ← repo-level dev IDE config
+│   ├── launch.json             # "Run Extension" config (F5 from repo root)
+│   └── tasks.json              # bun-based compile/watch tasks (cwd=extension/)
+├── README.md, CHANGELOG.md, LICENSE   ← canonical, symlinked from extension/
+├── CONTRIBUTING.md             # this file
+├── pyproject.toml, uv.lock, .python-version
+├── mise.toml                   # tool versions + run tasks
+└── .gitignore
 ```
 
 ## How the extension works
@@ -54,14 +64,15 @@ pyproject.toml          # Python deps (helpers + optional `plot` group)
 The unique value prop is "**a notebook running in the live frame of the
 debugger**". Everything else falls out of that.
 
-1. `.dnb` files are claimed by `DebugNotebookSerializer` (a small JSON-on-disk
+1. `.dnb` files are claimed by `DebugNotebookSerializer` (small JSON-on-disk
    format that preserves cell outputs, unlike Jupyter `.ipynb`).
 2. When a cell runs, `DebugNotebookController` finds the active debug session,
    resolves the paused thread/frame, and sends a DAP `evaluate` request scoped
    to that frame.
 3. For Python sessions, on first run the controller base64-installs
-   `src/dnb_helpers.py` into the debuggee's `__builtins__`. This gives every
-   frame `__dnb_run__(code, globals(), locals())`, `__dnb_render__(obj)`, etc.
+   `extension/src/dnb_helpers.py` into the debuggee's `__builtins__`. This
+   gives every frame `__dnb_run__(code, globals(), locals())`,
+   `__dnb_render__(obj)`, etc.
 4. Each cell body is base64-wrapped and sent as
    `__dnb_run__(<b64-decoded code>, globals(), locals())`. The helper
    AST-splits the code, executes the leading statements, and `eval`s the
@@ -92,8 +103,9 @@ helper for the target runtime.
 
 `.vscode/launch.json` defines **Run Extension** which:
 
-- runs the `compile` task first,
-- launches an Extension Development Host with `testing/` as the workspace.
+- runs the `compile` task (`bun run compile` inside `extension/`) first,
+- launches an Extension Development Host pointed at `extension/`, with
+  `dev-workspace/` as the open workspace.
 
 Inside the dev host:
 
@@ -101,13 +113,13 @@ Inside the dev host:
    `.venv/bin/python`.
 2. Open `plot_demo.py`, set a breakpoint on the last line.
 3. F5 → "Python: plot_demo (pause for notebook)" (defined in
-   `testing/.vscode/launch.json`). The script pauses at the breakpoint.
+   `dev-workspace/.vscode/launch.json`). The script pauses at the breakpoint.
 4. Open `plot_demo.dnb`. The Debug Notebook kernel is auto-selected.
 5. Shift+Enter through the cells.
 
-Use the **Run Extension (watch)** config instead if you want `tsc -watch`
-running in the background so edits hot-rebuild between cell runs (you still
-need to reload the dev host: `Ctrl+R` in that window).
+Use **Run Extension (watch)** if you want `tsc -watch` running in the
+background so edits hot-rebuild between cell runs (still need to reload the
+dev host with `Ctrl+R`).
 
 ### Enabling breakpoints in `.dnb` cells (and other non-standard files)
 
@@ -117,11 +129,11 @@ get a **hollow** gutter dot — set but inactive — which is confusing while
 testing this extension. Two ways to fix it:
 
 **Method 1 — workspace setting (already wired up for the dev host).**
-`testing/.vscode/settings.json` sets `"debug.allowBreakpointsEverywhere": true`
-so any breakpoint inside the dev host's `testing/` workspace is active.
-For your own projects, flip the same toggle in user settings
-(`Ctrl+,` → search `allowBreakpointsEverywhere`) or add it to your project's
-`.vscode/settings.json`:
+`dev-workspace/.vscode/settings.json` sets
+`"debug.allowBreakpointsEverywhere": true` so any breakpoint inside the dev
+host's `dev-workspace/` is active. For your own projects, flip the same
+toggle in user settings (`Ctrl+,` → search `allowBreakpointsEverywhere`) or
+add it to that project's `.vscode/settings.json`:
 
 ```json
 { "debug.allowBreakpointsEverywhere": true }
@@ -171,15 +183,13 @@ host:
 
 ## Helper module — local sanity check
 
-You can exercise `src/dnb_helpers.py` directly without VS Code (mise has
-already put `python` from `.venv` and `uv` on PATH once you've `cd`-ed into
-the project):
+Exercise `extension/src/dnb_helpers.py` directly without VS Code:
 
 ```bash
 uv sync --group plot
 python -c "
 import sys, io
-ns = {}; exec(open('src/dnb_helpers.py').read(), ns)
+ns = {}; exec(open('extension/src/dnb_helpers.py').read(), ns)
 buf = io.StringIO(); sys.stdout = buf
 ns['_dnb_run']('1 + 2', ns, ns)              # → '3\n'
 sys.stdout = sys.__stdout__
@@ -198,24 +208,26 @@ console.log([...s.matchAll(re)]);
 ```
 
 For the split-across-chunks case, see the buffering logic in
-`notebookController._consumeChunk`.
+`extension/src/notebookController.ts` → `_consumeChunk`.
 
 ## Building and packaging
 
 ```bash
-mise run compile           # tsc -p ./
-mise run package           # vsce package → debug-notebook-<version>.vsix
+mise run compile           # tsc -p ./ inside extension/
+mise run package           # vsce package --out ../dist/ → dist/debug-notebook-<version>.vsix
 ```
 
-To inspect what would be shipped:
+Inspect what would be packaged:
 
 ```bash
-bunx --bun vsce ls
+cd extension && bunx --bun vsce ls
 ```
 
-The `.vsix` ships compiled JS, `src/dnb_helpers.py`, icons, README, LICENSE.
-Source TS, source maps, `.venv`, testing fixtures, mise config, and
-`pyproject.toml` are excluded by `.vscodeignore`.
+The `.vsix` ships compiled JS, `src/dnb_helpers.py`, icons, README, LICENSE,
+CHANGELOG (the last three resolved through the symlinks from
+`extension/` → repo root). Source TS, source maps, the venv, the
+dev-workspace fixtures, mise config, and `pyproject.toml` are excluded by
+`extension/.vscodeignore`.
 
 ## Publishing to the marketplace
 
@@ -223,14 +235,15 @@ One-time setup:
 
 1. Create a publisher account at <https://marketplace.visualstudio.com/manage>
    (sign in with a Microsoft account). The publisher ID used here is
-   `sidh1999` — see `publisher` in `package.json`.
+   `sidh1999` — see `publisher` in `extension/package.json`.
 2. Create a Personal Access Token (PAT) at <https://dev.azure.com> →
    User Settings → Personal Access Tokens. Scope it to
-   **Marketplace → Publish**. Set the organization to "All accessible
-   organizations" and pick a custom expiration (1 year is fine).
+   **Marketplace → Publish**. Organization: "All accessible organizations".
+   Custom expiration (1 year is fine).
 3. Register and log in once with `vsce`:
 
    ```bash
+   cd extension
    bunx --bun vsce create-publisher <publisher-id>   # only on first publish
    bunx --bun vsce login <publisher-id>              # paste the PAT
    ```
@@ -238,9 +251,9 @@ One-time setup:
 Each release:
 
 ```bash
-# bump the version in package.json, write a CHANGELOG.md entry, then:
+# bump the version in extension/package.json, write a CHANGELOG.md entry, then:
 mise run compile
-bunx --bun vsce publish                  # or: vsce publish patch|minor|major
+cd extension && bunx --bun vsce publish        # or: vsce publish patch|minor|major
 ```
 
 `vsce publish patch|minor|major` does the version bump for you (use it instead
@@ -253,11 +266,11 @@ and install it from inside VS Code as a smoke test before announcing.
 ### Pre-publish sanity checklist
 
 - `mise run compile` passes with no diagnostics.
-- `bunx --bun vsce ls` shows only the files you expect (no `.venv`, no
-  testing fixtures, no source maps).
+- `cd extension && bunx --bun vsce ls` shows only the files you expect (no
+  `.venv`, no dev-workspace fixtures, no source maps).
 - Manual test checklist above passes in the dev host.
 - `CHANGELOG.md` is up to date.
-- Version in `package.json` matches what you're about to publish.
+- Version in `extension/package.json` matches what you're about to publish.
 - No `console.log` left in the execution path.
 
 ## Notes / gotchas
@@ -280,3 +293,28 @@ and install it from inside VS Code as a smoke test before announcing.
   own program (running between cells) calls `plt.show()`, it will now emit
   a sentinel instead of opening a window. This is intentional — interactive
   matplotlib windows during a debug session are usually unwanted.
+- README/CHANGELOG/LICENSE in `extension/` are **symlinks** to the canonical
+  files at the repo root. Git tracks them as symlinks (mode `120000`, ~12-byte
+  blobs that store only the target path), not duplicated content. `vsce
+  package` follows the symlinks and embeds the actual file content into the
+  `.vsix` — the published artifact has no symlinks.
+
+  **Cloning on Linux / macOS / WSL:** works out of the box, no setup needed.
+
+  **Cloning on native Windows:** Git for Windows sometimes defaults to
+  `core.symlinks=false`, which materializes each symlink as a plain text file
+  containing the literal path string (e.g. `"../README.md"`) — that breaks
+  `vsce package`. Before cloning, either:
+
+  ```bash
+  git config --global core.symlinks true
+  ```
+
+  …and enable Developer Mode (or run the shell as admin) so Windows allows
+  symlink creation, **or** just clone via WSL, which behaves like Linux.
+
+  If you've already cloned and the symlinks came through as text files, the
+  fastest fix is to delete `extension/{README.md,CHANGELOG.md,LICENSE}` and
+  re-create them as symlinks pointing at `../{README.md,CHANGELOG.md,LICENSE}`
+  (`mklink` on cmd, `New-Item -ItemType SymbolicLink` in PowerShell, or
+  `ln -s` in a Linux-ish shell).

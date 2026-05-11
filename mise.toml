@@ -8,17 +8,24 @@ _.path = ["{{config_root}}/.venv/bin"]
 VIRTUAL_ENV = "{{config_root}}/.venv"
 
 [tasks.setup]
-description = "Install JS deps (bun) and create/sync the Python venv (uv)."
+description = "Install JS deps (bun, inside extension/) and create/sync the Python venv (uv)."
 run = [
-    "bun install",
+    "cd extension && bun install",
     "uv venv --python 3.14 .venv",
     "uv sync --inexact",
 ]
 
 [tasks.compile]
-description = "Build the extension."
+description = "Compile the extension."
+dir = "{{config_root}}/extension"
 run = "bun run compile"
 
+[tasks.watch]
+description = "Compile the extension in watch mode."
+dir = "{{config_root}}/extension"
+run = "bun run watch"
+
 [tasks.package]
-description = "Package the extension into a .vsix."
-run = "bun run package"
+description = "Package the extension into a .vsix in dist/."
+dir = "{{config_root}}/extension"
+run = "bunx --bun vsce package --out ../dist/"
