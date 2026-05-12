@@ -2,7 +2,9 @@
 
 **Interactive notebook interface that connects to your debug sessions** - Debug your code like never before with the power of notebooks!
 
-[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/sidh1999.debug-notebook)](https://marketplace.visualstudio.com/items/?itemName=sidh1999.debug-notebook)
+[![VS Code Marketplace Version](https://vsmarketplacebadges.dev/version-short/sidh1999.debug-notebook.png)](https://marketplace.visualstudio.com/items?itemName=sidh1999.debug-notebook)
+[![Installs](https://vsmarketplacebadges.dev/installs-short/sidh1999.debug-notebook.png)](https://marketplace.visualstudio.com/items?itemName=sidh1999.debug-notebook)
+[![Rating](https://vsmarketplacebadges.dev/rating-short/sidh1999.debug-notebook.png)](https://marketplace.visualstudio.com/items?itemName=sidh1999.debug-notebook&ssr=false#review-details)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/sidhanthapoddar99/pyrept-notebook-vscode-debug-extension/blob/master/LICENSE)
 <!-- [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com) -->
 

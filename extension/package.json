@@ -102,14 +102,19 @@
   },
   "badges": [
     {
-      "url": "https://img.shields.io/visual-studio-marketplace/v/sidh1999.debug-notebook",
+      "url": "https://vsmarketplacebadges.dev/version-short/sidh1999.debug-notebook.png",
       "href": "https://marketplace.visualstudio.com/items?itemName=sidh1999.debug-notebook",
       "description": "VS Code Marketplace Version"
     },
     {
-      "url": "https://img.shields.io/github/license/sidhanthapoddar99/pyrept-notebook-vscode-debug-extension",
-      "href": "https://github.com/sidhanthapoddar99/pyrept-notebook-vscode-debug-extension/blob/master/LICENSE",
-      "description": "License"
+      "url": "https://vsmarketplacebadges.dev/installs-short/sidh1999.debug-notebook.png",
+      "href": "https://marketplace.visualstudio.com/items?itemName=sidh1999.debug-notebook",
+      "description": "Installs"
+    },
+    {
+      "url": "https://vsmarketplacebadges.dev/rating-short/sidh1999.debug-notebook.png",
+      "href": "https://marketplace.visualstudio.com/items?itemName=sidh1999.debug-notebook&ssr=false#review-details",
+      "description": "Rating"
     }
   ]
 }
