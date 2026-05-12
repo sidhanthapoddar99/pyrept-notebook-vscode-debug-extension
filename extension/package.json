@@ -2,7 +2,7 @@
   "name": "debug-notebook",
   "displayName": "Debug Notebook",
   "description": "Interactive notebook interface that connects to your debug sessions - Debug your code like never before with the power of notebooks!",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "publisher": "sidh1999",
   "author": {
     "name": "Sidhantha Poddar",

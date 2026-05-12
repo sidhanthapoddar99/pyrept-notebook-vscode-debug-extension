@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## 2.0.2 - 2026-05-12
+
+### Changed
+- Docs: updated CONTRIBUTING.md publishing section with two paths — manual upload via the publisher web UI (simplest, no PAT) and CLI publish via `vsce`.
+- Marketplace badges: replaced the deprecated `img.shields.io/visual-studio-marketplace/...` endpoints with Microsoft's official `vsmarketplacebadges.dev` URLs in both README and `package.json` `badges`. Fixes the "retired" badge that appeared on the marketplace listing.
+
+No functional changes to the extension itself.
+
+
 ## 2.0.1 - 2026-05-12
 
 ### Added
